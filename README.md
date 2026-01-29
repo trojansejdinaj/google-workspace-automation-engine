@@ -1,6 +1,9 @@
-# google-workspace-automation-engine
+# Google Workspace Automation Engine
 
-A CLI-first engine for Google Workspace automations (Gmail/Drive/Sheets) with run tracking, structured logs, and audit exports.
+A small engine for running Google Workspace automations with run tracking, structured logs, and an audit trail.
 
-## Quickstart (placeholder)
-- TODO
+## Setup
+
+```bash
+uv sync
+```

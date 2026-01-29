@@ -3,17 +3,24 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Envs / secrets
 .venv/
 .env
 .env.*
+
+# build / packaging
+*.egg-info/
 dist/
 build/
-*.egg-info/
 
-# Tooling
+# Tooling caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 
-# Runtime artifacts
-runs/
+# Runtime artifacts (ignore all runs...)
+runs/*
+# ...but keep an evidence folder + its README tracked
+!runs/_evidence/
+!runs/_evidence/README.md
