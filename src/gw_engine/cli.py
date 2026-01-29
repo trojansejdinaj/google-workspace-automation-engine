@@ -1,7 +1,9 @@
 import argparse
 import os
+from pathlib import Path
 
 from gw_engine.config import ConfigError, load_config
+from gw_engine.engine import demo_steps, run_steps
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,7 +24,14 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.cmd == "demo":
-        print("gw demo: placeholder (coming soon)")
+        try:
+            cfg = load_config()
+        except ConfigError as e:
+            raise SystemExit(str(e)) from e
+
+        ctx = run_steps(runs_dir=Path(cfg.runs_dir), steps=demo_steps())
+        print(f"run_id={ctx.run_id}")
+        print(f"logs={ctx.logs_path}")
         return
 
     if args.cmd == "config":
