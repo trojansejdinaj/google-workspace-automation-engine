@@ -1,3 +1,31 @@
+# Run model
+
+The run model is the backbone of observability: it lets you answer:
+- What ran?
+- When did it run?
+- Which step failed?
+- Where are the artifacts?
+
+This model can live in a lightweight DB or even as files, but the schema stays stable.
+
+## Entities
+### RUNS
+One row per engine execution.
+- workflow_name, status, started/ended timestamps
+- config_hash + git_sha (reproducibility)
+
+### RUN_STEPS
+One row per step execution within a run.
+- step_name, status, duration
+- error_code + error_message
+- metrics_json for step outputs (counts, ids, etc.)
+
+### ARTIFACTS
+One row per artifact produced by a run.
+- path, type, checksum
+
+## Diagram
+```mermaid
 erDiagram
   RUNS ||--o{ RUN_STEPS : contains
   RUNS ||--o{ ARTIFACTS : produces

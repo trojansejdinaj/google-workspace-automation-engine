@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Google Workspace Automation Engine"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "google-api-python-client>=2.188.0",
+    "google-auth>=2.48.0",
+    "google-auth-oauthlib>=1.2.4",
+]
 
 [project.scripts]
 gw = "gw_engine.cli:main"

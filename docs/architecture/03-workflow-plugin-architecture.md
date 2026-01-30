@@ -1,3 +1,31 @@
+# Workflow plugin architecture
+
+Workflows are plugins that define a sequence of steps to execute.
+The engine core stays generic; adapters handle Google Workspace specifics.
+
+## Core interfaces
+- **Workflow**
+  - `name()` → stable identifier
+  - `steps()` → ordered list of steps
+  - `validate(cfg)` → fail early on missing config/env
+- **Step**
+  - `run(ctx)` → returns updated ctx (data/metrics/artifacts)
+- **Run Context**
+  - `run_id`, shared state, metrics, artifact registry
+
+## Adapters
+Adapters wrap Google APIs so workflow code stays clean:
+- Gmail adapter
+- Drive adapter
+- Sheets adapter
+
+Client factory + auth manager sit below adapters to ensure:
+- correct scopes per API
+- correct credential type per API (SA vs OAuth)
+- retry/backoff policies are consistent
+
+## Diagram
+```mermaid
 flowchart TB
   subgraph Core["Engine Core"]
     ENG[Engine Runtime]

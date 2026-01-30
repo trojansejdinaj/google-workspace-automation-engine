@@ -1,3 +1,27 @@
+# Golden path sequence
+
+The “golden path” is the most important demo flow: one command, deterministic behavior, clear outputs.
+
+Goal: you can run this end-to-end and it produces:
+- run_id
+- status + duration
+- artifacts under `runs/<run_id>/`
+
+## Golden path steps
+1) User runs `gw demo` (or `gw run <workflow>`).
+2) CLI loads config + validates.
+3) Auth manager builds credentials:
+   - SA for Drive/Sheets
+   - OAuth user for Gmail dev
+4) Client factory builds API clients.
+5) Engine starts a run → creates `run_id`.
+6) Engine executes workflow steps 1..N.
+7) Engine persists step status + durations.
+8) Engine writes logs + audit + artifacts index.
+9) CLI prints a final summary banner.
+
+## Diagram
+```mermaid
 sequenceDiagram
   autonumber
   actor User

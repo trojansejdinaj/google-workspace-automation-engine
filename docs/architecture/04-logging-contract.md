@@ -34,3 +34,10 @@ Each run MUST produce:
 ## Notes
 - Secrets must never be logged.
 - Prefer stable keys over free-form messages.
+
+## Example log lines
+```json
+{"ts":"2026-01-30T20:10:00Z","level":"INFO","component":"engine","event":"run_start","run_id":"r_abc123","workflow":"demo"}
+{"ts":"2026-01-30T20:10:01Z","level":"INFO","component":"engine","event":"step_start","run_id":"r_abc123","step":"auth_check","step_idx":0}
+{"ts":"2026-01-30T20:10:02Z","level":"INFO","component":"engine","event":"step_end","run_id":"r_abc123","step":"auth_check","step_idx":0,"ok":true,"duration_ms":842}
+{"ts":"2026-01-30T20:10:05Z","level":"INFO","component":"engine","event":"run_end","run_id":"r_abc123","ok":true,"duration_ms":5203}
