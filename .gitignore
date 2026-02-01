@@ -1,26 +1,56 @@
-# Python
+# ----------------------------
+# Python bytecode / caches
+# ----------------------------
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Envs / secrets
+# ----------------------------
+# Virtualenvs / secrets
+# ----------------------------
 .venv/
 .env
 .env.*
 
-# build / packaging
-*.egg-info/
+# ----------------------------
+# Build / packaging
+# ----------------------------
 dist/
 build/
+*.egg-info/
 
-# Tooling caches
+# ----------------------------
+# Test / lint / type caches
+# ----------------------------
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# Runtime artifacts (ignore all runs...)
+# ----------------------------
+# OS / editor junk
+# ----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ----------------------------
+# Runtime artifacts (runs)
+#   Ignore all runs, but keep curated evidence
+# ----------------------------
 runs/*
-# ...but keep an evidence folder + its README tracked
 !runs/_evidence/
-!runs/_evidence/README.md
+!runs/_evidence/**
+
+# ----------------------------
+# Workflow outputs (generated)
+# ----------------------------
+workflows/*/artifacts/
+workflows/*/evidence/
+
+# direnv
+.envrc
