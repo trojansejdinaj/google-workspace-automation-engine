@@ -309,6 +309,7 @@ source = { editable = "." }
 dependencies = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
+    { name = "google-auth-httplib2" },
     { name = "google-auth-oauthlib" },
 ]
 
@@ -324,6 +325,7 @@ dev = [
 requires-dist = [
     { name = "google-api-python-client", specifier = ">=2.188.0" },
     { name = "google-auth", specifier = ">=2.48.0" },
+    { name = "google-auth-httplib2", specifier = ">=0.2.0" },
     { name = "google-auth-oauthlib", specifier = ">=1.2.4" },
 ]
 
