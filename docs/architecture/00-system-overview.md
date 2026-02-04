@@ -12,7 +12,10 @@ This doc is the high-level map: what runs where, and what it connects to.
 - **Auth Manager** chooses credentials for a given API:
   - Service Account (SA) for Drive/Sheets automation
   - OAuth user creds for Gmail dev
-- **Client Factory** builds Google API clients with correct scopes and retry/backoff.
+- **Client Factory** (`gw_engine.clients`) builds Google API clients with correct scopes and retry/backoff.
+  - Central builder for Drive/Sheets/Gmail clients with consistent configuration
+  - Reliability defaults: timeout + retries/backoff/jitter (configurable via env vars)
+  - Rate-limit handling: retries on 429, 5xx, and rate-limit-style 403 reasons
 - **Engine Runtime** executes steps and persists run state.
 - **Run Store + Artifacts** write a run record and files under `runs/<run_id>/`.
 

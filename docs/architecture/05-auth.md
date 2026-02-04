@@ -51,6 +51,19 @@ Gmail uses OAuth even if Service Account is configured (Drive/Sheets can still u
 
 ---
 
+## Client factory uses scopes automatically
+
+Scopes are centralized in `gw_engine.clients.scopes_for_api(...)`. You don't need to worry about scope selection in workflows.
+
+Key design points:
+- **Drive/Sheets** can use either Service Account or OAuth (determined by config)
+- **Gmail** remains OAuth-only for now (until domain-wide delegation is added in a future iteration)
+- The factory automatically applies the correct scopes for each API + auth method
+
+**Distinction**: Auth is about **credentials** (who you are). The Client Factory is what **builds API clients consistently** with those credentials and the right configuration (scopes, timeouts, retries).
+
+---
+
 ## Dev prerequisites (what to set up once)
 
 ### Service Account + quota-safe test sheet
