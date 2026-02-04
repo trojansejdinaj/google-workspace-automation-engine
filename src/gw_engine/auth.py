@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Protocol, cast
 
 from google.auth.transport.requests import Request
 from google.oauth2 import credentials as oauth_credentials
@@ -11,6 +12,19 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from gw_engine.config import AppConfig
+
+
+class DriveService(Protocol):
+    def files(self) -> Any: ...
+
+
+class SheetsService(Protocol):
+    def spreadsheets(self) -> Any: ...
+
+
+class GmailService(Protocol):
+    def users(self) -> Any: ...
+
 
 DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
@@ -50,14 +64,16 @@ def _http_error_hint(e: HttpError) -> str:
     return ""
 
 
-def _service_account_creds(sa_path: str, scopes: list[str]):
+def _service_account_creds(sa_path: str, scopes: list[str]) -> object:
     p = Path(sa_path)
     if not p.exists():
         raise AuthError(f"Service Account JSON not found: {p}")
-    return service_account.Credentials.from_service_account_file(str(p), scopes=scopes)
+    return service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
+        str(p), scopes=scopes
+    )
 
 
-def _oauth_user_creds(cfg: AppConfig, scopes: list[str]):
+def _oauth_user_creds(cfg: AppConfig, scopes: list[str]) -> object:
     ga = cfg.google_auth
     missing = [
         k
@@ -76,7 +92,7 @@ def _oauth_user_creds(cfg: AppConfig, scopes: list[str]):
             "then set env vars in .env (local/dev) or your deployment env (prod).\n"
         )
 
-    creds = oauth_credentials.Credentials(
+    creds = oauth_credentials.Credentials(  # type: ignore[no-untyped-call]
         token=None,
         refresh_token=ga.refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
@@ -89,7 +105,7 @@ def _oauth_user_creds(cfg: AppConfig, scopes: list[str]):
     return creds
 
 
-def build_drive(cfg: AppConfig):
+def build_drive(cfg: AppConfig) -> DriveService:
     # OAuth user can stay drive.file if you want
     if cfg.google_auth.service_account_json:
         scopes = [DRIVE_SCOPE]
@@ -97,10 +113,11 @@ def build_drive(cfg: AppConfig):
     else:
         scopes = [DRIVE_FILE_SCOPE]
         creds = _oauth_user_creds(cfg, scopes)
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
+    svc = build("drive", "v3", credentials=creds, cache_discovery=False)
+    return cast(DriveService, svc)
 
 
-def build_sheets(cfg: AppConfig):
+def build_sheets(cfg: AppConfig) -> SheetsService:
     # Sheets needs spreadsheets scope; Drive scope needed for SA access to shared files
     if cfg.google_auth.service_account_json:
         scopes = [SHEETS_SCOPE, DRIVE_SCOPE]
@@ -108,10 +125,11 @@ def build_sheets(cfg: AppConfig):
     else:
         scopes = [SHEETS_SCOPE, DRIVE_FILE_SCOPE]
         creds = _oauth_user_creds(cfg, scopes)
-    return build("sheets", "v4", credentials=creds, cache_discovery=False)
+    svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
+    return cast(SheetsService, svc)
 
 
-def build_gmail(cfg: AppConfig):
+def build_gmail(cfg: AppConfig) -> GmailService:
     """
     Gmail in dev uses OAuth user credentials.
     Service accounts can access Gmail only via Workspace domain-wide delegation (future).
@@ -121,7 +139,8 @@ def build_gmail(cfg: AppConfig):
     # Always use OAuth for Gmail if OAuth creds exist.
     # Having a service_account_json configured for Drive/Sheets should NOT block Gmail.
     creds = _oauth_user_creds(cfg, scopes)
-    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+    svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
+    return cast(GmailService, svc)
 
 
 def oauth_dev_flow(*, client_secrets_path: Path, scopes: list[str]) -> str:
@@ -134,7 +153,7 @@ def oauth_dev_flow(*, client_secrets_path: Path, scopes: list[str]) -> str:
             "No refresh token returned.\n"
             "Fix: re-run and ensure prompt='consent' is used, and you haven't previously authorized without offline access.\n"
         )
-    return creds.refresh_token
+    return cast(str, creds.refresh_token)
 
 
 def test_service_account_drive_sheets(cfg: AppConfig) -> str:
