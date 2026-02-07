@@ -1,0 +1,17 @@
+uv run ruff format .
+21 files left unchanged
+uv run ruff check .
+All checks passed!
+uv run mypy .
+Success: no issues found in 21 source files
+uv run pytest
+..................                                                       [100%]
+18 passed in 0.23s
+
+# Demo run (success)
+uv run python -c "from pathlib import Path; from gw_engine.engine import run_steps, demo_steps; ctx = run_steps(runs_dir=Path('runs'), steps=demo_steps()); print(ctx.run_id, ctx.run_dir)"
+
+# Verify artifacts
+ls -la runs/<RUN_ID>/
+tail -n 20 runs/<RUN_ID>/logs.jsonl
+cat runs/<RUN_ID>/context.json
