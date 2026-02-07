@@ -33,3 +33,7 @@ def now_ms() -> int:
 
 def duration_ms(start_ms: int, end_ms: int) -> int:
     return max(0, end_ms - start_ms)
+
+
+def iso_utc_from_ms(ms: int) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ms / 1000))

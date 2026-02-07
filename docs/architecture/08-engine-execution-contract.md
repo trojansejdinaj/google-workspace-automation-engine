@@ -8,7 +8,12 @@ This is the single source of truth for how the engine executes workflows.
 
 **Location**: `src/gw_engine/engine.py`
 
-The engine runs a **Workflow** (ordered steps) and enforces the step lifecycle, failure rules, and context persistence.
+The engine runs a **Workflow** (ordered steps) and enforces:
+
+- Step lifecycle + status transitions
+- Failure rules (stop-on-failure)
+- Context persistence
+- Run + step summaries (for audit/export)
 
 ---
 
@@ -22,29 +27,34 @@ The engine runs a **Workflow** (ordered steps) and enforces the step lifecycle, 
 ## Step lifecycle + statuses (minimal)
 
 Each step is in exactly one of these states:
+
 - `PENDING` — not started yet
 - `RUNNING` — currently executing
 - `OK` — finished successfully
 - `FAILED` — finished with failure
 
 Lifecycle order:
+
 - `PENDING` -> `RUNNING` -> (`OK` | `FAILED`)
 
 The lifecycle is reflected in logs:
+
 - `step_start` marks transition to `RUNNING`
 - `step_end` marks `OK` or `FAILED`
-- `step_error` records the failure details when `FAILED`
+- `step_error` records failure details when `FAILED`
 
 ---
 
 ## StepResult contract (explicit failure)
 
 Steps must return a `StepResult` (returning `None` is an error):
+
 - `ok: bool` — `True` for success, `False` for failure
 - `outputs: dict | None` — per-step outputs recorded by step name
 - `error: str | None` — human-readable failure reason (required when `ok=False`)
 
 A step **fails** if:
+
 - It raises an exception, or
 - It returns `StepResult(ok=False, ...)`
 
@@ -64,6 +74,7 @@ Two objects are passed to every step:
   - `step_outputs` — outputs by step name
 
 Persistence guarantees:
+
 - The engine creates `runs/<run_id>/` at run start.
 - The engine **persists RunState** to `runs/<run_id>/context.json` **after each step completes** and **again on failure**.
 - Steps may write additional files under `run_dir`, but must not mutate `RunContext`.
@@ -73,20 +84,89 @@ Persistence guarantees:
 ## Failure semantics (strict)
 
 On failure (exception or explicit failed result):
+
 - The engine records `step_error` and `step_end` with status `FAILED`.
 - The engine **stops immediately**. No further steps execute.
 - The engine persists `context.json` after the failed step completes.
+- The engine finalizes run/step summaries with failure details.
 
 ---
 
-## Run artifacts on disk
+## Run artifacts on disk (engine guarantees)
 
 During execution, the engine guarantees:
+
 - `runs/<run_id>/` directory exists
 - `runs/<run_id>/logs.jsonl` contains JSONL log events for run + steps
 - `runs/<run_id>/context.json` contains the latest RunState
+- `runs/<run_id>/run.json` contains run-level summary (status + timestamps + duration)
+- `runs/<run_id>/steps.json` contains per-step summaries (status + timestamps + duration)
+- Optionally `runs/<run_id>/audit.json` can be written as a convenience bundle `{ run, steps }`
 
 No other files are required by the engine contract.
+
+### Minimum run summary fields (`run.json`)
+
+- `run_id`
+- `workflow_name`
+- `status` (`OK` | `FAILED`)
+- `started_at`
+- `finished_at` (or `ended_at`)
+- `duration_ms`
+- `config_hash` (optional)
+- `git_sha` (optional)
+- `error_summary` (optional)
+
+### Minimum step summary fields (`steps.json`)
+Per step:
+
+- `step_index`
+- `step_name`
+- `status` (`OK` | `FAILED`)
+- `started_at`
+- `finished_at`
+- `duration_ms`
+- `error_code` (optional)
+- `error_message` (optional)
+- `metrics` (optional JSON)
+
+---
+
+## Audit export contract (CLI)
+
+Audit exports are generated after-the-fact from persisted summaries:
+
+- `gw export <run_id> --format json`
+  - Writes `runs/<run_id>/audit.json` by default
+  - Output is a bundle `{ run: <run.json>, steps: <steps.json> }`
+
+- `gw export <run_id> --format csv`
+  - Writes `runs/<run_id>/audit.csv` by default
+  - CSV is **one row per step**, with run-level fields repeated per row
+
+CSV minimum columns (stable order):
+```
+run_id
+workflow_name
+run_status
+run_started_at
+run_finished_at
+run_duration_ms
+step_index
+step_name
+step_status
+step_started_at
+step_finished_at
+step_duration_ms
+step_error_code
+step_error_message
+step_metrics_json
+```
+
+Export error behavior:
+
+- If `runs/<run_id>/` does not exist, the command must fail with a clear message and non-zero exit code.
+- If required summary files are missing/corrupt, the command must fail clearly (do not silently produce partial exports).
 
 ---
 
@@ -112,10 +192,12 @@ def fail_step(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
 
 ctx = RunContext.create(Path("runs"))
 log = JsonlLogger(path=ctx.logs_path, component="engine")
-workflow = Workflow(name="demo", steps=[
-    Step(name="ok_step", fn=ok_step),
-    Step(name="fail_step", fn=fail_step),
-])
+workflow = Workflow(
+    name="demo",
+    steps=[
+        Step(name="ok_step", fn=ok_step),
+        Step(name="fail_step", fn=fail_step),
+    ],
+)
 
 run_workflow(workflow=workflow, ctx=ctx, log=log)
-```

@@ -10,6 +10,7 @@ from gw_engine.auth import (
 )
 from gw_engine.config import ConfigError, load_config
 from gw_engine.engine import demo_steps, run_steps
+from gw_engine.exporters import ExportError, export_run_audit
 
 _SCOPE_MAP = {
     "gmail.readonly": "https://www.googleapis.com/auth/gmail.readonly",
@@ -29,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
     # config
     cfg = sub.add_parser("config", help="Print resolved config (secrets redacted)")
     cfg.add_argument("--profile", choices=["local", "dev", "prod"], help="Override GW_PROFILE")
+
+    # export
+    export = sub.add_parser("export", help="Export audit data for an existing run_id")
+    export.add_argument("run_id", help="Run identifier under runs/<run_id>/")
+    export.add_argument("--format", choices=["json", "csv"], default="json", help="Export format")
+    export.add_argument("--out", help="Optional output path (defaults under runs/<run_id>/)")
 
     # auth
     auth = sub.add_parser("auth", help="Auth helpers (dev)")
@@ -83,6 +90,24 @@ def main() -> None:
         for k, v in cfg_obj.to_safe_dict().items():
             print(f"{k}={v}")
         return
+
+    if args.cmd == "export":
+        try:
+            cfg = load_config()
+        except ConfigError as e:
+            raise SystemExit(str(e)) from e
+
+        try:
+            out_path = export_run_audit(
+                runs_dir=Path(cfg.runs_dir),
+                run_id=args.run_id,
+                fmt=args.format,
+                out_path=Path(args.out) if args.out else None,
+            )
+            print(f"audit={out_path}")
+            return
+        except ExportError as e:
+            raise SystemExit(str(e)) from e
 
     if args.cmd == "auth":
         # profile override is useful here too (optional)
