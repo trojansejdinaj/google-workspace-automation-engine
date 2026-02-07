@@ -29,3 +29,14 @@ gw export <run_id> --format csv
 Defaults:
 - JSON writes `runs/<run_id>/audit.json`
 - CSV writes `runs/<run_id>/audit.csv`
+
+## Demo
+
+Run the deterministic end-to-end demo:
+
+```bash
+uv run gw demo
+```
+
+Runbook:
+- `docs/runbooks/demo-e2e.md`

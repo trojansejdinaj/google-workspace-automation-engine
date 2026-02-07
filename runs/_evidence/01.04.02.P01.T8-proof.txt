@@ -1,0 +1,24 @@
+Command:
+uv run gw demo
+
+Output:
+=== GW DEMO RESULT ===
+status=OK
+run_id=74e5b9def6a14707a4d1ec2e6a55fab5
+run_dir=runs/74e5b9def6a14707a4d1ec2e6a55fab5
+logs=runs/74e5b9def6a14707a4d1ec2e6a55fab5/logs.jsonl
+audit_json=runs/74e5b9def6a14707a4d1ec2e6a55fab5/audit.json
+audit_csv=runs/74e5b9def6a14707a4d1ec2e6a55fab5/audit.csv
+======================
+
+Proof files:
+find runs/74e5b9def6a14707a4d1ec2e6a55fab5 -maxdepth 1 -type f -printf "%f\n" | sort
+audit.csv
+audit.json
+context.json
+logs.jsonl
+run.json
+steps.json
+
+Tail logs:
+tail -n 5 runs/74e5b9def6a14707a4d1ec2e6a55fab5/logs.jsonl

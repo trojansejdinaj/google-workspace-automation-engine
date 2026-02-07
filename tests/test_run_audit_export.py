@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -94,3 +95,26 @@ def test_rerun_creates_new_run_id_and_preserves_history(tmp_path: Path) -> None:
     assert ctx_one.run_id != ctx_two.run_id
     assert (runs_dir / ctx_one.run_id / "run.json").exists()
     assert (runs_dir / ctx_two.run_id / "run.json").exists()
+
+
+def test_demo_command_writes_artifact_and_audit_exports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs_dir = tmp_path / "runs"
+    monkeypatch.setenv("GW_RUNS_DIR", str(runs_dir))
+    monkeypatch.setattr(sys, "argv", ["gw", "demo"])
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "=== GW DEMO RESULT ===" in out
+    assert "status=OK" in out
+
+    match = re.search(r"run_id=([0-9a-f]{32})", out)
+    assert match is not None
+    run_id = match.group(1)
+    run_dir = runs_dir / run_id
+
+    assert (run_dir / "artifacts" / "demo_payload.json").exists()
+    assert (run_dir / "audit.json").exists()
+    assert (run_dir / "audit.csv").exists()
