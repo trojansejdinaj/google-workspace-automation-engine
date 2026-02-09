@@ -1,0 +1,33 @@
+workflow:
+  name: sheets_cleanup_reporting
+
+sheets:
+  sheet_id: "DUMMY_SHEET_ID"          # spreadsheet id
+
+tabs:
+  input_tab: "raw"
+  cleaned_tab: "cleaned"
+  report_tab: "report"
+
+rules:
+  required_columns:
+    - id
+    - date
+    - description
+    - amount
+  optional_columns:
+    - category
+    - status
+
+  # idempotency key preference:
+  # - use "id" if present
+  # - else derive a stable hash from selected fields
+  idempotency_key:
+    primary: "id"
+    fallback_fields: ["date", "description", "amount", "category"]
+
+reporting:
+  # example knobs (keep simple at first)
+  include_category_totals: true
+  include_amount_totals: true
+  max_issue_examples: 25

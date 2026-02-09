@@ -1,0 +1,50 @@
+P02.T0 — Sheets cleanup + reporting workflow contract (plan)
+
+Workflow scope
+- Goal: clean a “raw” tab and generate a report tab + run artifacts.
+- Deterministic + repeatable (idempotent outputs).
+
+Inputs
+- sheets.sheet_id: required (Spreadsheet ID)
+- tabs.input_tab: required (source tab name)
+- rules.required_columns: required
+
+Required columns (baseline)
+- id
+- date
+- description
+- amount
+
+Optional columns
+- category
+- status
+
+Outputs
+- tabs.cleaned_tab: cleaned, normalized rows
+- tabs.report_tab: summary + issues
+- run artifacts (per run):
+  - runs/<run_id>/artifacts/report.json
+  - optional: runs/<run_id>/artifacts/cleaned_preview.csv
+  - optional: runs/<run_id>/artifacts/issues.csv
+
+Rules
+- Trim whitespace on strings.
+- Normalize date to ISO (YYYY-MM-DD) when possible; invalid -> issue.
+- Normalize amount to numeric; invalid -> issue.
+- Drop fully empty rows.
+
+Idempotency key
+- Primary: id
+- Fallback: stable hash(date|description|amount|category)
+
+Failure policy
+- Hard fail (stop run): missing sheet_id / missing input tab / missing required columns.
+- Soft fail (continue, report issues): row parse errors, duplicates, empty rows dropped.
+
+Expected log events (sample)
+- workflow_start
+- config_valid
+- sheets_input_loaded
+- rows_cleaned
+- report_written
+- workflow_ok

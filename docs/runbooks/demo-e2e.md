@@ -21,6 +21,18 @@ uv run gw demo
 
 The command runs a tiny workflow via the engine, writes a small artifact, exports audit files, then prints a final banner including `run_id`, `status`, `run_dir`, and audit paths.
 
+## Run a workflow demo
+
+```bash
+./workflows/sheets_cleanup_reporting/demo.sh
+# or
+uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml
+```
+
+Expected outputs:
+- `runs/<run_id>/logs.jsonl`
+- `runs/<run_id>/artifacts/report.json`
+
 ## 3) Find run artifacts and audit exports
 
 By default runs are stored under `runs/<run_id>/` (or your configured `GW_RUNS_DIR`).

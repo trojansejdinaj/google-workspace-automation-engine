@@ -7,7 +7,7 @@ audit artifacts.
 This doc is the high-level map: what runs where, and what it connects to.
 
 ## Core concepts
-- **CLI** (`gw`) triggers a run (demo or a specific workflow).
+- **CLI** (`gw`) triggers a run (`gw demo` or `gw run <workflow>`).
 - **Config Loader** reads config + env and validates required settings.
 - **Auth Manager** chooses credentials for a given API:
   - Service Account (SA) for Drive/Sheets automation

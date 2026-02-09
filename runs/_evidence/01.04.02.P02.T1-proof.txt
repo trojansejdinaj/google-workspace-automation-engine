@@ -1,0 +1,68 @@
+P02.T1 scaffold proof
+
+Command:
+uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml
+
+Logs (sample):
+{"event":"config_valid", ...}
+{"event":"report_written", ...}
+
+Artifact snippet (report.json):
+{"workflow":"sheets_cleanup_reporting","counts":{"rows_in":0,...}}
+
+=== CONFIG (snippet) ===
+workflow:
+  name: sheets_cleanup_reporting
+
+sheets:
+  sheet_id: "DUMMY_SHEET_ID"          # spreadsheet id
+
+tabs:
+  input_tab: "raw"
+  cleaned_tab: "cleaned"
+  report_tab: "report"
+
+rules:
+  required_columns:
+    - id
+    - date
+    - description
+    - amount
+  optional_columns:
+    - category
+    - status
+
+  # idempotency key preference:
+  # - use "id" if present
+  # - else derive a stable hash from selected fields
+  idempotency_key:
+    primary: "id"
+    fallback_fields: ["date", "description", "amount", "category"]
+
+reporting:
+  # example knobs (keep simple at first)
+  include_category_totals: true
+  include_amount_totals: true
+  max_issue_examples: 25
+=== LOGS (10 lines) ===
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "run_start", "run_id": "e037842733f74475ac19f38f04c1950b", "workflow": "sheets_cleanup_reporting"}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "e037842733f74475ac19f38f04c1950b", "step": "validate_config", "step_idx": 1, "start_ms": 1770631076629, "status": "RUNNING"}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "config_valid", "workflow": "sheets_cleanup_reporting", "required_columns": 4}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "e037842733f74475ac19f38f04c1950b", "step": "validate_config", "step_idx": 1, "ok": true, "status": "OK", "duration_ms": 0, "end_ms": 1770631076629}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "e037842733f74475ac19f38f04c1950b", "step": "write_stub_report", "step_idx": 2, "start_ms": 1770631076629, "status": "RUNNING"}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "report_written", "path": "runs/e037842733f74475ac19f38f04c1950b/artifacts/report.json"}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "e037842733f74475ac19f38f04c1950b", "step": "write_stub_report", "step_idx": 2, "ok": true, "status": "OK", "duration_ms": 1, "end_ms": 1770631076630}
+{"ts": "2026-02-09T09:57:56Z", "level": "INFO", "component": "cli", "event": "run_end", "run_id": "e037842733f74475ac19f38f04c1950b", "ok": true, "duration_ms": 1, "end_ms": 1770631076630}
+=== REPORT (snippet) ===
+{
+  "counts": {
+    "duplicates": 0,
+    "invalid": 0,
+    "rows_cleaned": 0,
+    "rows_dropped": 0,
+    "rows_in": 0
+  },
+  "issues": [],
+  "run_id": "e037842733f74475ac19f38f04c1950b",
+  "workflow": "sheets_cleanup_reporting"
+}

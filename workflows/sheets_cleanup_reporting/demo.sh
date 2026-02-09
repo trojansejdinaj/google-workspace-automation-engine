@@ -7,4 +7,5 @@ cd "$REPO_ROOT"
 WORKFLOW="sheets_cleanup_reporting"
 CONFIG="workflows/${WORKFLOW}/config.example.yml"
 
-uv run python -m gw_engine.cli run "$WORKFLOW" --config "$CONFIG"
+# Uses the console script defined in pyproject.toml ([project.scripts] gw=...)
+uv run gw run "$WORKFLOW" --config "$CONFIG"

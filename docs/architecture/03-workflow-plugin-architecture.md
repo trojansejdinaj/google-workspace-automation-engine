@@ -13,6 +13,28 @@ The engine core stays generic; adapters handle Google Workspace specifics.
 - **Run Context**
   - `run_id`, shared state, metrics, artifact registry
 
+## Repo-local workflow discovery
+Workflows live under `workflows/<workflow_name>/`.
+
+Entrypoint: `workflows/<workflow_name>/workflow.py`.
+
+Required function: `get_workflow(cfg) -> Workflow`.
+
+The CLI loads this via `src/gw_engine/workflow_loader.py`.
+
+Tiny stub:
+
+```python
+# workflows/<name>/workflow.py
+from typing import Any
+
+from gw_engine.contracts import Workflow
+
+
+def get_workflow(cfg: dict[str, Any]) -> Workflow:
+    ...
+```
+
 ## Adapters
 Adapters wrap Google APIs so workflow code stays clean:
 - Gmail adapter

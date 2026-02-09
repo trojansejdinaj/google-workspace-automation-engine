@@ -12,10 +12,11 @@ from gw_engine.auth import (
 )
 from gw_engine.config import ConfigError, load_config
 from gw_engine.contracts import RunState, Step, StepResult
-from gw_engine.engine import run_steps_result
+from gw_engine.engine import run_steps_result, run_workflow
 from gw_engine.exporters import ExportError, export_run_audit
 from gw_engine.logger import JsonlLogger
 from gw_engine.run_context import RunContext
+from gw_engine.workflow_loader import WorkflowLoadError, load_workflow_from_repo_root
 
 _SCOPE_MAP = {
     "gmail.readonly": "https://www.googleapis.com/auth/gmail.readonly",
@@ -45,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("run_id", help="Run identifier under runs/<run_id>/")
     export.add_argument("--format", choices=["json", "csv"], default="json", help="Export format")
     export.add_argument("--out", help="Optional output path (defaults under runs/<run_id>/)")
+
+    # run
+    run = sub.add_parser("run", help="Run a workflow from workflows/<name>/workflow.py")
+    run.add_argument("workflow_name", help="Workflow folder name under ./workflows/")
+    run.add_argument("--config", required=True, help="Path to workflow config yml")
 
     # auth
     auth = sub.add_parser("auth", help="Auth helpers (dev)")
@@ -116,6 +122,31 @@ def demo_steps() -> list[Step]:
         Step(name="build_payload", fn=build_payload),
         Step(name="write_artifact", fn=write_artifact),
     ]
+
+
+def _load_workflow_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise SystemExit(f"Workflow config not found: {path}")
+
+    if path.suffix.lower() == ".json":
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        try:
+            import yaml
+        except Exception as e:  # noqa: BLE001
+            raise SystemExit(
+                "PyYAML is required to load YAML configs. Install it or use JSON."
+            ) from e
+
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise SystemExit("Workflow config must be a mapping at the top level.")
+    return cast(dict[str, Any], data)
 
 
 def _print_demo_banner(
@@ -218,6 +249,32 @@ def main() -> None:
             return
         except ExportError as e:
             raise SystemExit(str(e)) from e
+
+    if args.cmd == "run":
+        cfg_path = Path(args.config)
+        workflow_cfg = _load_workflow_config(cfg_path)
+        repo_root = Path(__file__).resolve().parents[2]
+        try:
+            wf = load_workflow_from_repo_root(repo_root, args.workflow_name, workflow_cfg)
+        except WorkflowLoadError as e:
+            raise SystemExit(str(e)) from e
+
+        ctx = RunContext.create(Path("runs"))
+        log = JsonlLogger(ctx.logs_path, component="cli")
+        result = run_workflow(workflow=wf, ctx=ctx, log=log)
+        print(
+            json.dumps(
+                {
+                    "ok": result.ok,
+                    "run_id": result.run_id,
+                    "failed_step": result.failed_step,
+                    "error": result.error,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        raise SystemExit(0 if result.ok else 1)
 
     if args.cmd == "auth":
         # profile override is useful here too (optional)

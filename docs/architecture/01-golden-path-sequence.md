@@ -9,6 +9,7 @@ Goal: you can run this end-to-end and it produces:
 
 ## Golden path steps
 1) User runs `gw demo` (or `gw run <workflow>`).
+   Example: `uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml`
 2) CLI loads config + validates.
 3) Auth manager builds credentials:
    - SA for Drive/Sheets
