@@ -40,3 +40,6 @@ uv run gw demo
 
 Runbook:
 - `docs/runbooks/demo-e2e.md`
+
+## Workflows
+- Sheets cleanup (`sheets_cleanup_reporting`): Schema-driven validation (required cols + types) with explicit invalid-row reasons (no silent drops).

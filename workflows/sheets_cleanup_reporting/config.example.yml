@@ -10,6 +10,7 @@ tabs:
   report_tab: "report"
 
 rules:
+  # Back-compat (still used as defaults if schema not fully defined)
   required_columns:
     - id
     - date
@@ -19,9 +20,34 @@ rules:
     - category
     - status
 
+  # NEW: explicit schema = single source of truth
+  schema:
+    id:
+      type: string
+      required: true
+      allow_blank: false
+    date:
+      type: date_iso
+      required: true
+      allow_blank: false
+    description:
+      type: string
+      required: true
+      allow_blank: false
+    amount:
+      type: number
+      required: true
+      allow_blank: false
+    category:
+      type: string
+      required: false
+      allow_blank: true
+    status:
+      type: string
+      required: false
+      allow_blank: true
+
   # idempotency key preference:
-  # - use "id" if present
-  # - else derive a stable hash from selected fields
   idempotency_key:
     primary: "id"
     fallback_fields: ["date", "description", "amount", "category"]

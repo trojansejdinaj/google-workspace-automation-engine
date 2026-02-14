@@ -1,0 +1,46 @@
+01.04.02.P02.T2 — Define schema + validation rules (Sheets)
+
+CONFIG DUMP (workflow config)
+----------------------------
+(workflows/sheets_cleanup_reporting/config.example.yml)
+  schema:
+    id:
+      type: string
+      required: true
+      allow_blank: false
+    date:
+      type: date_iso
+      required: true
+      allow_blank: false
+    description:
+      type: string
+      required: true
+      allow_blank: false
+    amount:
+      type: number
+      required: true
+      allow_blank: false
+    category:
+      type: string
+      required: false
+      allow_blank: true
+    status:
+      type: string
+      required: false
+      allow_blank: true
+
+RUN LOG LINES (5–10)
+-------------------
+(run_id: 40d8e0f8ba9a494ab63432f19b27e6d4)
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "run_start", "run_id": "40d8e0f8ba9a494ab63432f19b27e6d4", "workflow": "sheets_cleanup_reporting"}
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "40d8e0f8ba9a494ab63432f19b27e6d4", "step": "validate_config", "step_idx": 1, "start_ms": 1771063941577, "status": "RUNNING"}
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "config_valid", "workflow": "sheets_cleanup_reporting", "schema_cols": 6}
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "40d8e0f8ba9a494ab63432f19b27e6d4", "step": "validate_sample_rows", "step_idx": 2, "start_ms": 1771063941578, "status": "RUNNING"}
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "validation_done", "rows_in": 4, "rows_valid": 1, "rows_invalid": 3, "artifact": "runs/40d8e0f8ba9a494ab63432f19b27e6d4/artifacts/validation_report.json"}
+{"ts": "2026-02-14T10:12:21Z", "level": "INFO", "component": "cli", "event": "run_end", "run_id": "40d8e0f8ba9a494ab63432f19b27e6d4", "ok": true, "duration_ms": 2, "end_ms": 1771063941579}
+
+OUTPUT SNIPPET
+--------------
+runs/40d8e0f8ba9a494ab63432f19b27e6d4/artifacts/validation_report.json
+"counts": {"rows_in": 4, "rows_invalid": 3, "rows_valid": 1}
+"invalid_examples": [{"reasons": ["missing_required:id"], "row": {"amount": "12.00", "date": "2026-02-02", "description": "Taxi", "id": ""}, "row_idx": 1}]

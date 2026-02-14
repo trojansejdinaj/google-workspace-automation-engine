@@ -25,6 +25,12 @@ This workflow:
 Or directly:
 - `uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml`
 
+## Schema & Validation (T2)
+- Schema lives in `config.yml` under `rules.schema`.
+- Invalid rows are preserved and annotated with reasons, not dropped.
+- Validation output: `runs/<run_id>/artifacts/validation_report.json`.
+- Run locally: `./workflows/sheets_cleanup_reporting/demo.sh` and `make test`.
+
 ## Outputs
 ### Sheets
 - Cleaned tab: `tabs.cleaned_tab`
