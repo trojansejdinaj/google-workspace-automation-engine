@@ -52,6 +52,27 @@ rules:
     primary: "id"
     fallback_fields: ["date", "description", "amount", "category"]
 
+transforms:
+  strings:
+    trim: true
+    collapse_spaces: true
+    case:
+      # per-field override: lower|upper|title|none
+      description: title
+      category: lower
+
+  dates:
+    # accepted input formats (normalize to YYYY-MM-DD)
+    formats: ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"]
+
+  numbers:
+    strip_commas: true
+
+dedupe:
+  # applied AFTER transforms + validation
+  keys: ["id"]
+  keep: first   # first|last
+
 reporting:
   # example knobs (keep simple at first)
   include_category_totals: true
