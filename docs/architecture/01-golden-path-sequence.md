@@ -7,6 +7,11 @@ Goal: you can run this end-to-end and it produces:
 - status + duration
 - artifacts under `runs/<run_id>/`
 
+Outputs/results for `sheets_cleanup_reporting` include:
+- `runs/<run_id>/artifacts/report.csv`
+- `runs/<run_id>/artifacts/needs_review.csv`
+- updated Google Sheets tabs: `report` and `needs_review`
+
 ## Golden path steps
 1) User runs `gw demo` (or `gw run <workflow>`).
    Example: `uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml`

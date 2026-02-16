@@ -53,6 +53,12 @@ The validator emits exact reason strings:
 - Invalid rows are preserved and annotated with reasons.
 - Coercion is allowed (e.g., "3.50" -> 3.5), but dates must match strict ISO `YYYY-MM-DD`.
 
+## Operator-facing outputs
+Operators see validation outcomes in both Sheets and run artifacts:
+- Report tab: a metric/value KPI block including a UTC timestamp.
+- Needs review tab: invalid rows with `reason` and `values_json`.
+- Run artifacts: `runs/<run_id>/artifacts/report.csv` and `runs/<run_id>/artifacts/needs_review.csv`.
+
 ## Example
 Schema:
 ```yaml

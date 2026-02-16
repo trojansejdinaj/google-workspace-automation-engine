@@ -54,3 +54,7 @@ workflows/*/evidence/
 
 # direnv
 .envrc
+workflows/sheets_cleanup_reporting/config.local.yml
+
+# local workflow configs (secrets)
+**/config.local.yml

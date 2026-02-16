@@ -23,3 +23,26 @@ Those belong in `runs/` (ignored by git).
 Use task-coded filenames:
 - `01.04.02.P01.T1-quality-gates.txt`
 - `01.04.02.P01.T1-quality-gates.png`
+
+## KPI naming (for proof files)
+Use a single canonical set for evidence proofs:
+- `rows_in`
+- `rows_valid`
+- `rows_invalid`
+- `dedupe_removed`
+- `rows_out`
+
+If code logs `invalid_count`, map it to `rows_invalid` in the proof for consistency (or update code to log `rows_invalid` too).
+
+## Proof template
+Copy/paste skeleton:
+
+```
+RESULT: ...
+CONFIG DUMP:
+<...>
+LOG LINES (5-10):
+<...>
+OUTPUT SNIPPET:
+<...>
+```

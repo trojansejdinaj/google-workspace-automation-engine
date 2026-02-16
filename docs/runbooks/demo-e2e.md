@@ -29,9 +29,22 @@ The command runs a tiny workflow via the engine, writes a small artifact, export
 uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml
 ```
 
+Workflow runbooks:
+- [docs/runbooks/sheets-cleanup-reporting.md](docs/runbooks/sheets-cleanup-reporting.md)
+
 Expected outputs:
 - `runs/<run_id>/logs.jsonl`
-- `runs/<run_id>/artifacts/report.json`
+- `runs/<run_id>/run.json`
+- `runs/<run_id>/steps.json`
+- `runs/<run_id>/artifacts/report.csv`
+- `runs/<run_id>/artifacts/needs_review.csv`
+- (optional) `runs/<run_id>/artifacts/cleanup_report.json` if present
+
+Report artifacts:
+- `report.csv` contains metric/value KPIs plus the UTC timestamp for when the report was generated.
+- `needs_review.csv` contains `row_number`, `reason`, and `values_json` for rows that need review.
+
+The workflow also writes or updates two Google Sheets tabs: `report` and `needs_review` (tab names come from the config).
 
 ## 3) Find run artifacts and audit exports
 

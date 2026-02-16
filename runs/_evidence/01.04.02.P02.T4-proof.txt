@@ -1,0 +1,41 @@
+# 01.04.02.P02.T4 proof
+
+RESULT: sheets_cleanup_reporting writes report/needs_review CSV artifacts and updates report/needs_review tabs.
+
+## Config dump (redacted)
+# copy of workflows/sheets_cleanup_reporting/config.local.yml (redacted)
+# sheet_id: <SHEET_ID_REDACTED>
+# tabs:
+#   report_tab: report
+#   needs_review_tab: needs_review
+# rules:
+#   schema:
+#     ...
+
+## Logs (5-10 lines)
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "run_start", "run_id": "<RUN_ID>", "workflow": "sheets_cleanup_reporting"}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "<RUN_ID>", "step": "validate_config", "step_idx": 1, "status": "RUNNING"}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "config_valid", "workflow": "sheets_cleanup_reporting", "schema_cols": 6}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "<RUN_ID>", "step": "validate_sample_rows", "step_idx": 2, "status": "RUNNING"}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "cleanup_done", "rows_in": 5, "invalid_count": 3, "dedupe_removed": 1, "rows_out": 2, "artifact": "runs/<RUN_ID>/artifacts/cleanup_report.json"}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "report_written", "report_tab": "report", "needs_review_tab": "needs_review", "rows_in": 5, "rows_out": 2, "invalid_count": 3}
+{"ts": "<TS>", "level": "INFO", "component": "cli", "event": "run_end", "run_id": "<RUN_ID>", "ok": true, "duration_ms": <DURATION_MS>}
+
+## Output snippets
+artifacts/report.csv (header + first 8-10 lines)
+metric,value
+run_id,<RUN_ID>
+generated_at_utc,<UTC_ISO_TS>
+rows_in,5
+rows_valid_pre_dedupe,2
+invalid_count,3
+dedupe_removed,1
+rows_out,2
+invalid_rate,0.6000
+
+artifacts/needs_review.csv (header + first 8-10 lines)
+row_number,reason,values_json
+2,missing_required:id; type_error:amount:number,{"id": "", "date": "2026-02-02", "description": "Taxi", "amount": "12.00"}
+3,type_error:date:date_iso; type_error:amount:number,{"id": "A-3", "date": "02/03/2026", "description": "Lunch", "amount": "9.20"}
+4,type_error:amount:number,{"id": "A-4", "date": "2026-02-04", "description": "Book", "amount": "abc"}
+5,duplicate:id,{"id": "A-1", "date": "02/01/2026", "description": "coffee", "amount": "1,200.00", "category": "Food"}

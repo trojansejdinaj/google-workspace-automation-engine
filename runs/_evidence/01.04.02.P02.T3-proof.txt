@@ -1,3 +1,4 @@
+RESULT: OK — rows_in=5 rows_out=2 invalid_count=3 dedupe_removed=1
 # 01.04.02.P02.T3 proof
 
 ## Config dump (transforms + dedupe)
