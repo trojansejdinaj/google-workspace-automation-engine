@@ -8,6 +8,7 @@ tabs:
   input_tab: "raw"
   cleaned_tab: "cleaned"
   report_tab: "report"
+  needs_review_tab: "needs_review"
 
 rules:
   # Back-compat (still used as defaults if schema not fully defined)

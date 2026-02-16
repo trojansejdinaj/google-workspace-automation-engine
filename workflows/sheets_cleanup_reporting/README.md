@@ -56,16 +56,12 @@ Order:
 - cleaned preview
 
 ## Outputs
-### Sheets
-- Cleaned tab: `tabs.cleaned_tab` (T4)
-- Report tab: `tabs.report_tab` (T4)
+- Sheets tabs updated: report + needs_review (names come from config).
+- Run artifacts: `runs/<run_id>/artifacts/report.csv` and `runs/<run_id>/artifacts/needs_review.csv` (optional `runs/<run_id>/artifacts/cleanup_report.json`).
 
-### Run artifacts (per run)
-- `runs/<run_id>/logs.jsonl`
-- `runs/<run_id>/summary.json`
-- `runs/<run_id>/artifacts/validation_report.json` (T2)
-- `runs/<run_id>/artifacts/cleanup_report.json` (T3)
-- optional: `runs/<run_id>/artifacts/cleaned_preview.csv` (if enabled)
+### Screenshots
+- [Report tab](docs/assets/sheets_cleanup_reporting/report-tab.png)
+- [Needs-review tab](docs/assets/sheets_cleanup_reporting/needs-review-tab.png)
 
 ### Evidence (DoD proof)
 Save a proof file:
