@@ -1,0 +1,51 @@
+================================================================================
+01.04.02.P02.T7 TESTS PROOF: Unit + Integration Gating
+================================================================================
+Date: 2026-02-19
+
+RESULT
+- Unit tests are green and runnable without external credentials.
+- Integration tests are gated by marker/env checks and excluded by default in normal runs/CI.
+
+Config dump (redacted)
+- PYTEST marker config: integration (defined in pyproject)
+- PYTEST default addopts: -q -m 'not integration'
+- Env vars referenced for integration gating (names only):
+  GW_TEST_SHEET_ID
+  GOOGLE_SERVICE_ACCOUNT_JSON
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  GOOGLE_REFRESH_TOKEN
+  GW_PROFILE
+
+Commands run (pytest commands)
+- uv run pytest tests/test_sheets_validation_unit.py -q
+- uv run pytest tests/test_sheets_transforms_unit.py -q
+- uv run pytest
+- uv run pytest tests/test_sheets_integration.py -m integration -q
+- uv run pytest tests/test_sheets_validation_unit.py -m "not integration" -vv
+
+Logs (real run excerpt)
+============================= test session starts ==============================
+platform linux -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0
+rootdir: /home/trojan/projects/google-workspace-automation-engine
+configfile: pyproject.toml
+collected 13 items
+
+tests/test_sheets_validation_unit.py::test_validate_rows_coerces_supported_types[string-  hello  -hello] PASSED [  7%]
+tests/test_sheets_validation_unit.py::test_validate_rows_reports_stable_type_error_reason_keys[number-not-a-number] PASSED [ 38%]
+tests/test_sheets_validation_unit.py::test_blank_not_allowed_emits_stable_reason_code PASSED [ 92%]
+tests/test_sheets_validation_unit.py::test_rows_metrics_and_marked_output_consistency PASSED [100%]
+============================== 13 passed in 0.02s ==============================
+
+Output snippet
+- Pytest summary:
+  80 passed in 0.32s
+  s                                                                        [100%]  (integration test file when env missing)
+
+- Relevant artifact snippet (CI workflow command):
+  .github/workflows/ci.yml
+  run: uv run pytest -m "not integration"
+================================================================================
+End of 01.04.02.P02.T7 proof
+================================================================================

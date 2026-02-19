@@ -1,9 +1,10 @@
-.PHONY: help sync format lint type test check
+.PHONY: help sync format fmt lint type test check
 
 help:
 	@echo "Targets:"
 	@echo "  make sync    - install deps via uv"
 	@echo "  make format  - format with ruff"
+	@echo "  make fmt     - alias for make format"
 	@echo "  make lint    - lint with ruff"
 	@echo "  make type    - typecheck with mypy"
 	@echo "  make test    - run pytest"
@@ -14,6 +15,8 @@ sync:
 
 format:
 	uv run ruff format .
+
+fmt: format
 
 lint:
 	uv run ruff check .

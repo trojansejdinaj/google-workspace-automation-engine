@@ -8,6 +8,41 @@ A small engine for running Google Workspace automations with run tracking, struc
 uv sync
 ```
 
+## Testing
+
+Unit tests live under `tests/` (including focused unit files like `tests/test_*_unit.py`).
+
+Run unit tests locally (integration excluded by default):
+
+```bash
+uv run pytest -m "not integration"
+```
+
+Run a specific unit file:
+
+```bash
+uv run pytest tests/test_sheets_validation_unit.py -q
+```
+
+Integration tests are marked with `@pytest.mark.integration` and require:
+
+- `GW_TEST_SHEET_ID`
+- Auth via either:
+	- `GOOGLE_SERVICE_ACCOUNT_JSON`, or
+	- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+
+Run integration tests locally:
+
+```bash
+uv run pytest -m integration
+```
+
+CI expectation: integration tests are excluded by default. The CI workflow runs:
+
+```bash
+uv run pytest -m "not integration"
+```
+
 ## Logs
 Demo runs write structured logs to:
 
