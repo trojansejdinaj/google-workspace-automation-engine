@@ -23,8 +23,24 @@ Every step MUST produce:
   - `step`, `step_idx`, `ok`, `duration_ms`, `end_ms`
 
 On failure:
-- `step_error`
-  - `error_type`, `error_message` (+ optional stack later)
+- `step_failed`
+  - `error_type`, `error_message`, `error_artifact_path`
+  - For `APIRetryExhausted`: adds `operation`, `status_code`, `attempts`, `reason` (optional)
+
+## API retry events
+When API requests are retried:
+- `api_retry`
+  - `operation` — API method (e.g. `sheets.spreadsheets.values.get`)
+  - `attempt` — current attempt number
+  - `max_retries` — max retry attempts configured
+  - `status_code` — HTTP status (429, 503, etc.)
+  - `sleep_s` — backoff duration before retry
+  - `reason` — optional, for 403 rate limit errors
+
+When retries are exhausted:
+- `api_retry_exhausted`
+  - Same fields as `api_retry`, plus:
+  - `error_message` — full error description
 
 ## Run lifecycle events
 Each run MUST produce:

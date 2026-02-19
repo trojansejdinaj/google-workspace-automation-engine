@@ -137,5 +137,5 @@ def test_stop_on_exception_persists_context_and_logs_error(tmp_path: Path) -> No
         records = [json.loads(line) for line in f]
 
     assert any(
-        r.get("event") == "step_error" and r.get("error_type") == "RuntimeError" for r in records
+        r.get("event") == "step_failed" and r.get("error_type") == "RuntimeError" for r in records
     )

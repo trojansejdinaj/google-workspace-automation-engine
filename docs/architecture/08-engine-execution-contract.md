@@ -224,3 +224,89 @@ The file is a JSON array of records:
 - `metadata` (object) — free-form metrics (row counts, schema cols, etc.)
 
 Workflows register artifacts via `gw_engine.artifacts.register_artifact(...)`.
+
+---
+
+## API retries + error handling
+
+### Retryable errors
+
+Google API client requests automatically retry on transient errors:
+
+- **429** (Too Many Requests)
+- **500, 502, 503, 504** (Server errors)
+- **403** with reason `rateLimitExceeded` or `userRateLimitExceeded`
+
+### Backoff strategy
+
+- Exponential backoff with jitter
+- Default: `max_retries=5`, `initial_backoff_s=0.5`, `max_backoff_s=8.0`, `jitter_ratio=0.2`
+- Configurable via `ClientSettings(retry=RetryPolicy(...))`
+
+### Retry exhaustion
+
+When retries are exhausted, raises `APIRetryExhausted` exception with:
+
+- `operation` — API operation that failed (e.g. `sheets.spreadsheets.values.get`)
+- `attempts` — total attempts made (initial + retries)
+- `status_code` — HTTP status code
+- `reason` — rate limit reason (403 errors only)
+- `message` — error description
+
+### Step failure handling
+
+When a step raises an exception (including `APIRetryExhausted`):
+
+1. Step status marked `FAILED`
+2. Error artifact written to `runs/<run_id>/errors/<workflow>__<step>.json`
+3. `step_failed` event logged with error details + artifact path
+4. Run finalization proceeds (run.json, steps.json written)
+5. Execution stops (subsequent steps not run)
+
+### Error artifact format
+
+```json
+{
+  "run_id": "...",
+  "workflow": "...",
+  "step": "...",
+  "status": "FAILED",
+  "error_type": "APIRetryExhausted",
+  "error_message": "...",
+  "operation": "sheets.spreadsheets.values.get",
+  "status_code": 429,
+  "attempts": 5,
+  "reason": "rateLimitExceeded",
+  "ts": "2026-02-19T10:30:00Z"
+}
+```
+
+Non-API exceptions omit `operation`, `status_code`, `attempts`, `reason`.
+
+---
+
+## Rerun safety (idempotency)
+
+### Sheets write strategy
+
+Workflows writing to Sheets MUST use **clear-then-write** pattern:
+
+1. Clear target tab/range completely
+2. Write new data from A1
+
+**Never append** without deduplication/upsert logic.
+
+### Artifact naming
+
+Local artifacts use deterministic names:
+
+- Fixed filenames within run directory: `report.csv`, `cleanup.json`
+- Each run gets unique directory: `runs/<run_id>/artifacts/`
+- Reruns with same `run_id` overwrite files deterministically
+- Different runs create separate directories
+
+### Expectations
+
+- Running a workflow twice back-to-back MUST NOT duplicate rows in Sheets
+- Report tabs MUST be completely replaced on each run
+- Artifacts MUST overwrite (not append) within same run_id

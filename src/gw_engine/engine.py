@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from gw_engine.artifacts import write_error_summary
 from gw_engine.contracts import RunState, Step, StepResult, StepStatus, Workflow
+from gw_engine.exceptions import APIRetryExhausted
 from gw_engine.logger import JsonlLogger
 from gw_engine.run_context import RunContext, duration_ms, iso_utc_from_ms, now_ms
 
@@ -70,14 +72,56 @@ def run_workflow(
         except Exception as e:  # noqa: BLE001 (we want to capture anything)
             err_msg = str(e) or type(e).__name__
             result = StepResult(ok=False, error=err_msg)
-            log.error(
-                "step_error",
-                run_id=ctx.run_id,
+
+            # Build error payload for artifact
+            error_payload: dict[str, Any] = {
+                "run_id": ctx.run_id,
+                "workflow": workflow.name,
+                "step": step.name,
+                "status": "FAILED",
+                "error_type": type(e).__name__,
+                "error_message": err_msg,
+                "ts": iso_utc_from_ms(now_ms()),
+            }
+
+            # Extract APIRetryExhausted metadata if applicable
+            if isinstance(e, APIRetryExhausted):
+                error_payload["operation"] = e.operation
+                error_payload["attempts"] = e.attempts
+                if e.status_code is not None:
+                    error_payload["status_code"] = e.status_code
+                if e.reason is not None:
+                    error_payload["reason"] = e.reason
+
+            # Write error artifact
+            error_artifact_path = write_error_summary(
+                run_dir=ctx.run_dir,
+                workflow=workflow.name,
                 step=step.name,
-                step_idx=idx,
-                error_type=type(e).__name__,
-                error_message=err_msg,
+                payload=error_payload,
             )
+
+            # Build step_failed log event
+            failure_event: dict[str, Any] = {
+                "run_id": ctx.run_id,
+                "workflow": workflow.name,
+                "step": step.name,
+                "step_idx": idx,
+                "error_type": type(e).__name__,
+                "error_message": err_msg,
+                "error_artifact_path": error_artifact_path.relative_to(ctx.run_dir).as_posix(),
+            }
+
+            # Add APIRetryExhausted metadata to log event
+            if isinstance(e, APIRetryExhausted):
+                failure_event["operation"] = e.operation
+                failure_event["attempts"] = e.attempts
+                if e.status_code is not None:
+                    failure_event["status_code"] = e.status_code
+                if e.reason is not None:
+                    failure_event["reason"] = e.reason
+
+            log.error("step_failed", **failure_event)
             error_logged = True
 
         if result.outputs is not None:
@@ -88,13 +132,32 @@ def run_workflow(
             failed_step = step.name
             error = result.error or "step returned ok=false"
             if not error_logged:
+                # Write error artifact for non-exception failures
+                error_payload: dict[str, Any] = {
+                    "run_id": ctx.run_id,
+                    "workflow": workflow.name,
+                    "step": step.name,
+                    "status": "FAILED",
+                    "error_type": "StepFailed",
+                    "error_message": error,
+                    "ts": iso_utc_from_ms(now_ms()),
+                }
+                error_artifact_path = write_error_summary(
+                    run_dir=ctx.run_dir,
+                    workflow=workflow.name,
+                    step=step.name,
+                    payload=error_payload,
+                )
+
                 log.error(
-                    "step_error",
+                    "step_failed",
                     run_id=ctx.run_id,
+                    workflow=workflow.name,
                     step=step.name,
                     step_idx=idx,
                     error_type="StepFailed",
                     error_message=error,
+                    error_artifact_path=error_artifact_path.relative_to(ctx.run_dir).as_posix(),
                 )
 
         step_end = now_ms()

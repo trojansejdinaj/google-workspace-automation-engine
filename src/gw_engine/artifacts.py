@@ -65,3 +65,30 @@ def register_artifact(
     )
     _atomic_write_json(ctx.artifacts_index_path, index)
     return rec
+
+
+def write_error_summary(
+    *,
+    run_dir: Path,
+    workflow: str,
+    step: str,
+    payload: dict[str, Any],
+) -> Path:
+    """Write error summary artifact for a failed step.
+
+    Args:
+        run_dir: The run directory
+        workflow: Workflow name
+        step: Step name
+        payload: Error details (run_id, workflow, step, status, error_type, error_message, etc.)
+
+    Returns:
+        Path to the written error artifact
+    """
+    errors_dir = run_dir / "errors"
+    errors_dir.mkdir(parents=True, exist_ok=True)
+
+    artifact_path = errors_dir / f"{workflow}__{step}.json"
+    _atomic_write_json(artifact_path, payload)
+
+    return artifact_path

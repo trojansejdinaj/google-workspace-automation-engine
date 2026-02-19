@@ -16,6 +16,11 @@ from gw_engine.sheets_validation import build_schema_from_cfg, mark_rows_with_re
 
 
 def _write_tab_values(*, sheets_svc: Any, sheet_id: str, tab: str, values: list[list[Any]]) -> None:
+    """Write values to a sheet tab starting at A1.
+
+    IDEMPOTENCY: This writes from A1 onwards. Always call _clear_tab() first
+    to ensure old data doesn't persist if the new data set is smaller.
+    """
     rng = f"{tab}!A1"
     sheets_svc.spreadsheets().values().update(
         spreadsheetId=sheet_id,
@@ -42,6 +47,10 @@ def _ensure_sheet_tabs(*, sheets_svc: Any, sheet_id: str, tab_names: list[str]) 
 
 
 def _clear_tab(*, sheets_svc: Any, sheet_id: str, tab: str) -> None:
+    """Clear all data from a sheet tab.
+
+    IDEMPOTENCY: Clears entire tab to ensure clean slate for reruns.
+    """
     sheets_svc.spreadsheets().values().clear(
         spreadsheetId=sheet_id,
         range=tab,
@@ -189,6 +198,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 ]
             )
 
+        # IDEMPOTENCY: Write to Sheets using clear-then-write pattern.
+        # This ensures reruns completely replace tab contents, avoiding duplicate rows.
         sheet_id = cfg["sheets"]["sheet_id"]
         tabs = cfg["tabs"]
         report_tab = tabs["report_tab"]
@@ -204,6 +215,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             tab_names=[report_tab, needs_tab],
         )
 
+        # Clear tabs completely before writing to ensure idempotent behavior
         _clear_tab(sheets_svc=sheets_svc, sheet_id=sheet_id, tab=report_tab)
         _clear_tab(sheets_svc=sheets_svc, sheet_id=sheet_id, tab=needs_tab)
 
@@ -231,6 +243,9 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             needs_review_rows=len(needs_review_values) - 1,
         )
 
+        # IDEMPOTENCY: Local artifacts use fixed names within run-specific directory.
+        # Each run has unique ctx.run_dir, so reruns create new directories.
+        # Within same run_id (manual rerun), files overwrite deterministically.
         artifacts_dir = ctx.run_dir / "artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 

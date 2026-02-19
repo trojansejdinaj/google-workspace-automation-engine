@@ -17,6 +17,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from gw_engine.config import AppConfig
+from gw_engine.exceptions import APIRetryExhausted
 
 
 class DriveService(Protocol):
@@ -62,6 +63,8 @@ class RetryPolicy:
 class ClientSettings:
     timeout_s: int = 30
     retry: RetryPolicy = RetryPolicy()
+    log_retry: bool = True
+    log_sink: Callable[[dict[str, Any]], None] | None = None
 
 
 def _int_env(env: dict[str, str], key: str, default: int) -> int:
@@ -193,14 +196,40 @@ class _ExecRequest(Protocol):
 
 
 class _RetryingRequest:
-    def __init__(self, inner: _ExecRequest, retry_policy: RetryPolicy) -> None:
+    def __init__(
+        self,
+        inner: _ExecRequest,
+        retry_policy: RetryPolicy,
+        *,
+        log_retry: bool,
+        log_sink: Callable[[dict[str, Any]], None] | None,
+        operation: str,
+    ) -> None:
         self._inner = inner
         self._policy = retry_policy
+        self._log_retry = log_retry
+        self._log_sink = log_sink
+        self._operation = operation
+
+    def _log(self, event_data: dict[str, Any]) -> None:
+        """Emit structured log event if logging is enabled."""
+        if not self._log_retry:
+            return
+
+        if self._log_sink is not None:
+            self._log_sink(event_data)
+        else:
+            # Default: use Python logging
+            import logging
+
+            logger = logging.getLogger("gw_engine.clients")
+            logger.info("%s", json.dumps(event_data))
 
     def execute(self, http: Any | None = None, num_retries: int = 0) -> Any:
         policy = self._policy
         attempt = 0
         backoff = policy.initial_backoff_s
+        operation = self._operation
 
         while True:
             try:
@@ -208,16 +237,73 @@ class _RetryingRequest:
                 return self._inner.execute(http=http, num_retries=0)
             except HttpError as e:
                 attempt += 1
-                if attempt > policy.max_retries or not is_retryable_http_error(e):
-                    raise
+                status = getattr(e.resp, "status", None)
+                is_retryable = is_retryable_http_error(e)
+
+                if attempt > policy.max_retries or not is_retryable:
+                    # Retries exhausted or non-retryable error
+                    if is_retryable:
+                        # Retries exhausted on retryable error - log and raise APIRetryExhausted
+                        reason = None
+                        if status == 403:
+                            reason = _extract_rate_limit_reason(e)
+
+                        if self._log_retry:
+                            event_data: dict[str, Any] = {
+                                "event": "api_retry_exhausted",
+                                "operation": operation,
+                                "attempt": attempt,
+                                "max_retries": policy.max_retries,
+                                "status_code": status,
+                                "error_message": str(e),
+                            }
+                            if reason:
+                                event_data["reason"] = reason
+                            self._log(event_data)
+
+                        # Raise APIRetryExhausted instead of HttpError
+                        raise APIRetryExhausted(
+                            operation=operation,
+                            attempts=attempt,
+                            status_code=status,
+                            reason=reason,
+                            message=str(e),
+                            cause=e,
+                        ) from e
+                    else:
+                        # Non-retryable error - raise original HttpError
+                        raise
+
+                # Log retry attempt
+                reason = None
+                if status == 403:
+                    reason = _extract_rate_limit_reason(e)
 
                 jitter = 1.0 + random.uniform(-policy.jitter_ratio, policy.jitter_ratio)
                 sleep_s = min(policy.max_backoff_s, backoff) * jitter
+
+                event_data = {
+                    "event": "api_retry",
+                    "operation": operation,
+                    "attempt": attempt,
+                    "max_retries": policy.max_retries,
+                    "status_code": status,
+                    "sleep_s": round(sleep_s, 3),
+                }
+                if reason:
+                    event_data["reason"] = reason
+                self._log(event_data)
+
                 time.sleep(max(0.0, sleep_s))
                 backoff *= 2.0
 
 
-def _request_builder(retry_policy: RetryPolicy) -> Callable[..., Any]:
+def _request_builder(
+    retry_policy: RetryPolicy,
+    *,
+    log_retry: bool,
+    log_sink: Callable[[dict[str, Any]], None] | None,
+) -> Callable[..., Any]:
     def builder(
         http: Any,
         postproc: Any,
@@ -231,6 +317,9 @@ def _request_builder(retry_policy: RetryPolicy) -> Callable[..., Any]:
         # Create the real request object using googleapiclient's HttpRequest
         from googleapiclient.http import HttpRequest
 
+        # Compute operation label for logging and error reporting
+        operation = methodId if methodId else f"{method} {uri}"
+
         inner = HttpRequest(
             http=http,
             postproc=postproc,
@@ -241,7 +330,13 @@ def _request_builder(retry_policy: RetryPolicy) -> Callable[..., Any]:
             methodId=methodId,
             resumable=resumable,
         )
-        return _RetryingRequest(inner, retry_policy)
+        return _RetryingRequest(
+            inner,
+            retry_policy,
+            log_retry=log_retry,
+            log_sink=log_sink,
+            operation=operation,
+        )
 
     return builder
 
@@ -283,7 +378,11 @@ def build_service(
         version,
         http=http,
         cache_discovery=False,
-        requestBuilder=_request_builder(settings.retry),
+        requestBuilder=_request_builder(
+            settings.retry,
+            log_retry=settings.log_retry,
+            log_sink=settings.log_sink,
+        ),
     )
     if api == "drive":
         return cast(DriveService, svc)
