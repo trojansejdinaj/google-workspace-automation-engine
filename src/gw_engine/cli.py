@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Any, cast
 
+from gw_engine.artifacts import register_artifact
 from gw_engine.auth import (
     AuthError,
     oauth_dev_flow,
@@ -17,6 +18,7 @@ from gw_engine.exporters import ExportError, export_run_audit
 from gw_engine.logger import JsonlLogger
 from gw_engine.run_context import RunContext
 from gw_engine.workflow_loader import WorkflowLoadError, load_workflow_from_repo_root
+from gw_engine.workflows import get as get_builtin_workflow
 
 _SCOPE_MAP = {
     "gmail.readonly": "https://www.googleapis.com/auth/gmail.readonly",
@@ -115,6 +117,13 @@ def demo_steps() -> list[Step]:
             run_id=ctx.run_id,
             step="write_artifact",
             artifact=artifact_rel,
+        )
+        register_artifact(
+            ctx,
+            name="demo_payload_json",
+            path=artifact_path,
+            type="json",
+            metadata={"version": payload.get("version", 1)},
         )
         return StepResult(ok=True, outputs={"artifact": artifact_rel})
 
@@ -253,11 +262,17 @@ def main() -> None:
     if args.cmd == "run":
         cfg_path = Path(args.config)
         workflow_cfg = _load_workflow_config(cfg_path)
-        repo_root = Path(__file__).resolve().parents[2]
-        try:
-            wf = load_workflow_from_repo_root(repo_root, args.workflow_name, workflow_cfg)
-        except WorkflowLoadError as e:
-            raise SystemExit(str(e)) from e
+        # T5: prefer built-in engine plugins (src/gw_engine/workflows)
+        wf_factory = get_builtin_workflow(args.workflow_name)
+        if wf_factory is not None:
+            wf = wf_factory(workflow_cfg)
+        else:
+            # Back-compat: repo-local workflows/<name>/workflow.py
+            repo_root = Path(__file__).resolve().parents[2]
+            try:
+                wf = load_workflow_from_repo_root(repo_root, args.workflow_name, workflow_cfg)
+            except WorkflowLoadError as e:
+                raise SystemExit(str(e)) from e
 
         ctx = RunContext.create(Path("runs"))
         log = JsonlLogger(ctx.logs_path, component="cli")
