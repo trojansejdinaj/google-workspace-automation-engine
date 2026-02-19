@@ -1,0 +1,105 @@
+# 01.04.02.P02.T5 proof
+Workflow: sheets_cleanup_reporting (engine plugin)
+Run ID: b4c7db73c67d43049cd89316819ab3cb
+
+## Config dump (redacted)
+workflow:
+  name: sheets_cleanup_reporting
+
+sheets:
+  sheet_id: "1W3YkmhcoXkXJp6ZGGg8dFJw49ieAzOsy_4NeNw-O5JE" (REDACTED)
+  tabs:
+    input_tab: "raw"
+    cleaned_tab: "cleaned"
+    report_tab: "report"
+    needs_review_tab: "needs_review"
+
+rules:
+  required_columns:
+    - id
+    - date
+    - description
+    - amount
+  optional_columns:
+    - category
+    - status
+  schema:
+    id:
+      type: string
+      required: true
+      allow_blank: false
+    date:
+      type: string
+      required: true
+    description:
+      type: string
+      required: true
+    amount:
+      type: number
+      required: true
+
+## Logs (jsonl lines showing lifecycle)
+{"ts": "2026-02-19T15:24:11Z", "level": "INFO", "component": "cli", "event": "run_start", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "workflow": "sheets_cleanup_reporting"}
+{"ts": "2026-02-19T15:24:11Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "step": "validate_config", "step_idx": 1, "start_ms": 1771514651282, "status": "RUNNING"}
+{"ts": "2026-02-19T15:24:11Z", "level": "INFO", "component": "cli", "event": "config_valid", "workflow": "sheets_cleanup_reporting", "schema_cols": 6}
+{"ts": "2026-02-19T15:24:11Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "step": "validate_config", "step_idx": 1, "ok": true, "status": "OK", "duration_ms": 0}
+{"ts": "2026-02-19T15:24:11Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "step": "run_cleanup", "step_idx": 2, "start_ms": 1771514651282, "status": "RUNNING"}
+{"ts": "2026-02-19T15:24:16Z", "level": "INFO", "component": "cli", "event": "report_written", "report_tab": "report", "needs_review_tab": "needs_review", "rows_in": 5, "rows_out": 2, "invalid_count": 3, "report_rows": 9, "needs_review_rows": 3}
+{"ts": "2026-02-19T15:24:16Z", "level": "INFO", "component": "cli", "event": "cleanup_done", "rows_in": 5, "invalid_count": 3, "dedupe_removed": 1, "rows_out": 2, "artifacts_index": "artifacts/index.json"}
+{"ts": "2026-02-19T15:24:16Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "step": "run_cleanup", "step_idx": 2, "ok": true, "status": "OK", "duration_ms": 5273}
+{"ts": "2026-02-19T15:24:16Z", "level": "INFO", "component": "cli", "event": "run_end", "run_id": "b4c7db73c67d43049cd89316819ab3cb", "ok": true, "duration_ms": 5275}
+
+## Output artifacts
+### artifacts/index.json (complete)
+[
+  {
+    "created_at": "2026-02-19T15:24:16Z",
+    "metadata": {
+      "rows": 9
+    },
+    "name": "report_csv",
+    "path": "artifacts/report.csv",
+    "type": "csv"
+  },
+  {
+    "created_at": "2026-02-19T15:24:16Z",
+    "metadata": {
+      "rows": 3
+    },
+    "name": "needs_review_csv",
+    "path": "artifacts/needs_review.csv",
+    "type": "csv"
+  },
+  {
+    "created_at": "2026-02-19T15:24:16Z",
+    "metadata": {
+      "dedupe_removed": 1,
+      "invalid_count": 3,
+      "rows_in": 5,
+      "rows_out": 2
+    },
+    "name": "cleanup_report_json",
+    "path": "artifacts/cleanup_report.json",
+    "type": "json"
+  }
+]
+
+### needs_review.csv (head)
+row_number,reason,values_json
+4,amount: could not convert string to float: 'abc',"{""id"": ""A-4"", ""date"": ""2026-02-04"", ""description"": ""Book"", ""amount"": ""abc""}"
+2,missing_required:id,"{""id"": """", ""date"": ""2026-02-02"", ""description"": ""Taxi"", ""amount"": 12.0}"
+4,type_error:amount:number,"{""id"": ""A-4"", ""date"": ""2026-02-04"", ""description"": ""Book"", ""amount"": ""abc""}"
+
+## Artifacts directory listing
+runs/b4c7db73c67d43049cd89316819ab3cb/artifacts/cleanup_report.json
+runs/b4c7db73c67d43049cd89316819ab3cb/artifacts/index.json
+runs/b4c7db73c67d43049cd89316819ab3cb/artifacts/report.csv
+runs/b4c7db73c67d43049cd89316819ab3cb/artifacts/needs_review.csv
+
+## Summary
+✓ Engine loaded sheets_cleanup_reporting as built-in plugin (src/gw_engine/workflows)
+✓ Both workflow steps executed successfully (validate_config, run_cleanup)
+✓ Artifacts registered to index.json with correct paths and metadata
+✓ Cleanup report shows: 5 rows in, 2 valid rows out, 3 invalid rows flagged
+✓ Deduplication removed 1 duplicate entry
+✓ All artifacts present and discoverable via index

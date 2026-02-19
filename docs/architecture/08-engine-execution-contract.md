@@ -201,3 +201,26 @@ workflow = Workflow(
 )
 
 run_workflow(workflow=workflow, ctx=ctx, log=log)
+
+---
+
+## Artifacts index (T5)
+
+In addition to the engine-guaranteed files, workflows may emit artifacts.
+To make artifacts discoverable, each run has an **artifact index**:
+
+- `runs/<run_id>/artifacts/index.json`
+
+### Index format (stable)
+
+Append-only: workflows may register multiple artifacts over time; the index grows as artifacts are produced.
+
+The file is a JSON array of records:
+
+- `name` (string) — stable key (e.g. `report_csv`)
+- `type` (string) — `csv` | `json` | `txt` | etc.
+- `path` (string) — path relative to `runs/<run_id>/` (posix)
+- `created_at` (string) — ISO UTC timestamp
+- `metadata` (object) — free-form metrics (row counts, schema cols, etc.)
+
+Workflows register artifacts via `gw_engine.artifacts.register_artifact(...)`.

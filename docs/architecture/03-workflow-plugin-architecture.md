@@ -1,92 +1,74 @@
 # Workflow plugin architecture
 
-Workflows are plugins that define a sequence of steps to execute.
-The engine core stays generic; adapters handle Google Workspace specifics.
+Workflows are plugins that define a sequence of steps executed by the engine.
+The engine core stays generic; workflow code holds the Google Workspace specifics.
 
-## Core interfaces
+---
+
+## Core interfaces (actual)
+
+Defined in `src/gw_engine/contracts.py`:
+
 - **Workflow**
-  - `name()` → stable identifier
-  - `steps()` → ordered list of steps
-  - `validate(cfg)` → fail early on missing config/env
+  - `name: str`
+  - `steps: list[Step]`
+
 - **Step**
-  - `run(ctx)` → returns updated ctx (data/metrics/artifacts)
-- **Run Context**
-  - `run_id`, shared state, metrics, artifact registry
+  - `name: str`
+  - `fn(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult`
 
-## Repo-local workflow discovery
-Workflows live under `workflows/<workflow_name>/`.
+- **StepResult**
+  - `ok: bool`
+  - `outputs: dict | None` (captured into run context + step summaries)
+  - `error: str | None` (required when ok=False)
 
-Entrypoint: `workflows/<workflow_name>/workflow.py`.
+---
 
-Required function: `get_workflow(cfg) -> Workflow`.
+## Plugin locations
 
-The CLI loads this via `src/gw_engine/workflow_loader.py`.
+### 1) Built-in engine plugins (preferred)
+Location:
+- `src/gw_engine/workflows/<workflow>.py`
 
-Tiny stub:
+These are registered in:
+- `src/gw_engine/workflows/__init__.py`
 
-```python
-# workflows/<name>/workflow.py
-from typing import Any
+The CLI will prefer these for `gw run <workflow> ...`.
 
-from gw_engine.contracts import Workflow
+### 2) Repo-local workflows (back-compat / dev)
+Location:
+- `workflows/<workflow>/workflow.py`
 
+Required function:
+- `get_workflow(cfg) -> Workflow`
 
-def get_workflow(cfg: dict[str, Any]) -> Workflow:
-    ...
-```
+Loaded by:
+- `src/gw_engine/workflow_loader.py`
 
-## Adapters
-Adapters wrap Google APIs so workflow code stays clean:
-- Gmail adapter
-- Drive adapter
-- Sheets adapter
+---
 
-Client factory + auth manager sit below adapters to ensure:
-- correct scopes per API
-- correct credential type per API (SA vs OAuth)
-- retry/backoff policies are consistent
+## Artifact indexing (T5)
 
-## Diagram
-```mermaid
-flowchart TB
-  subgraph Core["Engine Core"]
-    ENG[Engine Runtime]
-    WF[Workflow Interface\nname(), steps(), validate()]
-    ST[Step Interface\nrun(ctx)->ctx]
-    CTX[Run Context\n(run_id + data + metrics)]
-    LOG[Logger + run_id]
-    RET[Retry/Backoff Policy]
-    AUD[Audit Exporter]
-    STORE[Run Store]
-  end
+Workflows can write artifacts under:
+- `runs/<run_id>/artifacts/`
 
-  subgraph Adapters["Google Workspace Adapters"]
-    GMAIL[Gmail Adapter]
-    DRIVE[Drive Adapter]
-    SHEETS[Sheets Adapter]
-    FACT[Client Factory]
-    AUTH[Auth Manager]
-  end
+To keep outputs discoverable, workflows should register outputs in:
+- `runs/<run_id>/artifacts/index.json`
 
-  subgraph Workflows["Workflows (Plugins)"]
-    W1[SheetsWorkflow]
-    W2[GmailWorkflow]
-    W3[DriveWorkflow]
-  end
+Registration helper:
+- `gw_engine.artifacts.register_artifact(...)`
 
-  ENG --> WF
-  WF --> ST
-  ST --> CTX
-  ENG --> LOG
-  ENG --> RET
-  ENG --> STORE
-  ENG --> AUD
+---
 
-  W1 --> SHEETS
-  W2 --> GMAIL
-  W3 --> DRIVE
+## Execution + logging
 
-  SHEETS --> FACT
-  GMAIL --> FACT
-  DRIVE --> FACT
-  FACT --> AUTH
+Workflows are executed by the engine runtime (`gw_engine.engine`), which is responsible for:
+
+- emitting `run_start` / `run_end`
+- emitting `step_start` / `step_end` (with status + duration)
+- propagating `run_id` into all logs for correlation
+
+Workflow code should focus on:
+- validating config
+- calling Workspace APIs / transforms
+- writing outputs + registering artifacts

@@ -18,13 +18,29 @@ class RunContext:
     run_dir: Path
     logs_path: Path
 
+    # T5: artifacts index contract
+    artifacts_dir: Path
+    artifacts_index_path: Path
+
     @staticmethod
     def create(runs_dir: Path) -> RunContext:
         run_id = new_run_id()
         run_dir = runs_dir / run_id
         logs_path = run_dir / "logs.jsonl"
+
+        artifacts_dir = run_dir / "artifacts"
+        artifacts_index_path = artifacts_dir / "index.json"
+
         run_dir.mkdir(parents=True, exist_ok=True)
-        return RunContext(run_id=run_id, run_dir=run_dir, logs_path=logs_path)
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+        return RunContext(
+            run_id=run_id,
+            run_dir=run_dir,
+            logs_path=logs_path,
+            artifacts_dir=artifacts_dir,
+            artifacts_index_path=artifacts_index_path,
+        )
 
 
 def now_ms() -> int:
