@@ -1,0 +1,4 @@
+row_number,reason,values_json
+4,amount: could not convert string to float: 'abc',"{""id"": ""A-4"", ""date"": ""2026-02-04"", ""description"": ""Book"", ""amount"": ""abc""}"
+2,missing_required:id,"{""id"": """", ""date"": ""2026-02-02"", ""description"": ""Taxi"", ""amount"": 12.0}"
+4,type_error:amount:number,"{""id"": ""A-4"", ""date"": ""2026-02-04"", ""description"": ""Book"", ""amount"": ""abc""}"

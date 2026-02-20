@@ -1,0 +1,71 @@
+================================================================================
+01.04.02.P02.T8 CHECK PROOF: demo.sh end-to-end wrapper + audit export
+================================================================================
+Date: 2026-02-20
+Run ID: 87a4e7ffacca43679378ae7113ce8964
+Workflow: sheets_cleanup_reporting
+
+RESULT
+- demo.sh runs successfully and exports audit artifacts; end banner printed
+
+Config dump (redacted)
+- Source config: workflows/sheets_cleanup_reporting/config.local.yml
+- workflow.name: sheets_cleanup_reporting
+- sheets.sheet_id: <REDACTED> (configured via ${GW_SA_TEST_SHEET_ID})
+- tabs:
+  - input_tab: raw
+  - cleaned_tab: cleaned
+  - report_tab: report
+  - needs_review_tab: needs_review
+- rules.schema:
+  - id: string (required)
+  - date: date_iso (required)
+  - description: string (required)
+  - amount: number (required)
+  - category: string (optional)
+  - status: string (optional)
+- transforms:
+  - strings.trim=true
+  - strings.collapse_spaces=true
+  - strings.case.description=title
+  - strings.case.category=lower
+  - dates.formats=[%Y-%m-%d, %d/%m/%Y, %m/%d/%Y]
+  - numbers.strip_commas=true
+- dedupe:
+  - keys=[id]
+  - keep=first
+
+Logs (runs/87a4e7ffacca43679378ae7113ce8964/logs.jsonl)
+{"ts": "2026-02-20T00:25:23Z", "level": "INFO", "component": "cli", "event": "run_start", "run_id": "87a4e7ffacca43679378ae7113ce8964", "workflow": "sheets_cleanup_reporting"}
+{"ts": "2026-02-20T00:25:23Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "87a4e7ffacca43679378ae7113ce8964", "step": "validate_config", "step_idx": 1, "start_ms": 1771547123695, "status": "RUNNING"}
+{"ts": "2026-02-20T00:25:23Z", "level": "INFO", "component": "cli", "event": "config_valid", "workflow": "sheets_cleanup_reporting", "schema_cols": 6}
+{"ts": "2026-02-20T00:25:23Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "87a4e7ffacca43679378ae7113ce8964", "step": "validate_config", "step_idx": 1, "ok": true, "status": "OK", "duration_ms": 0, "end_ms": 1771547123695}
+{"ts": "2026-02-20T00:25:23Z", "level": "INFO", "component": "cli", "event": "step_start", "run_id": "87a4e7ffacca43679378ae7113ce8964", "step": "run_cleanup", "step_idx": 2, "start_ms": 1771547123695, "status": "RUNNING"}
+{"ts": "2026-02-20T00:25:27Z", "level": "INFO", "component": "cli", "event": "report_written", "report_tab": "report", "needs_review_tab": "needs_review", "rows_in": 5, "rows_out": 2, "invalid_count": 3, "report_rows": 9, "needs_review_rows": 3}
+{"ts": "2026-02-20T00:25:27Z", "level": "INFO", "component": "cli", "event": "step_end", "run_id": "87a4e7ffacca43679378ae7113ce8964", "step": "run_cleanup", "step_idx": 2, "ok": true, "status": "OK", "duration_ms": 3913, "end_ms": 1771547127608}
+{"ts": "2026-02-20T00:25:27Z", "level": "INFO", "component": "cli", "event": "run_end", "run_id": "87a4e7ffacca43679378ae7113ce8964", "ok": true, "duration_ms": 3915, "end_ms": 1771547127609}
+
+Output snippet
+=== GW WORKFLOW DEMO END ===
+workflow=sheets_cleanup_reporting
+run_id=87a4e7ffacca43679378ae7113ce8964
+status=SUCCESS
+ok=True
+command_exit_code=0
+run_dir=runs/87a4e7ffacca43679378ae7113ce8964
+duration_ms=3915
+audit_json=runs/87a4e7ffacca43679378ae7113ce8964/audit.json
+audit_csv=runs/87a4e7ffacca43679378ae7113ce8964/audit.csv
+logs=runs/87a4e7ffacca43679378ae7113ce8964/logs.jsonl
+errors_dir=runs/87a4e7ffacca43679378ae7113ce8964/errors
+===============================
+
+File checks
+- runs/87a4e7ffacca43679378ae7113ce8964/audit.json
+- runs/87a4e7ffacca43679378ae7113ce8964/audit.csv
+- runs/87a4e7ffacca43679378ae7113ce8964/logs.jsonl
+- runs/87a4e7ffacca43679378ae7113ce8964/errors
+
+================================================================================
+End of 01.04.02.P02.T8 check proof
+================================================================================

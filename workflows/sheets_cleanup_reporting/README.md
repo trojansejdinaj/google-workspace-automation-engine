@@ -15,15 +15,46 @@ This workflow:
 3) produces a cleaned preview + validation annotations
 4) writes per-run artifacts under `runs/<run_id>/artifacts/`
 
-## Demo (local)
-1) Copy the example config:
-   - `workflows/sheets_cleanup_reporting/config.example.yml`
+## 2-minute demo (T8)
 
-2) Run:
-   - `./workflows/sheets_cleanup_reporting/demo.sh`
+```bash
+cd workflows/sheets_cleanup_reporting
+cp -n config.example.yml config.local.yml
+```
 
-Or directly:
-- `uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporting/config.example.yml`
+Edit `config.local.yml` (local only):
+- Set `sheets.sheet_id` from your Sheet URL: `https://docs.google.com/spreadsheets/d/<id>/edit`
+- Keep real IDs redacted in evidence/proof files.
+
+Run:
+
+```bash
+bash ./demo.sh
+```
+
+Expected outputs:
+- `runs/<run_id>/audit.json`
+- `runs/<run_id>/audit.csv`
+- `runs/<run_id>/logs.jsonl`
+- `runs/<run_id>/errors/`
+
+Rerun behavior:
+- Each run creates a new `run_id` directory under `runs/`.
+- Existing prior runs are not overwritten.
+
+### Troubleshooting
+- Auth: ensure `GW_SA_TEST_SHEET_ID` and Google auth env vars are set for your local setup.
+- Permissions: sheet must be shared with the credential identity used by the workflow.
+- Tab mismatch: verify `tabs.input_tab`, `tabs.cleaned_tab`, `tabs.report_tab`, `tabs.needs_review_tab` exist or are creatable.
+
+### Portfolio screenshots
+Capture these exactly:
+1) `docs/assets/sheets_cleanup_reporting/portfolio-01.png`
+	- Terminal output showing `bash ./demo.sh` end banner with `run_id`, `status`, `audit_json`, `audit_csv`.
+2) `docs/assets/sheets_cleanup_reporting/portfolio-02.png`
+	- Google Sheet UI after run showing `report` and `needs_review` tabs updated.
+
+Placeholders are checked in under `docs/assets/sheets_cleanup_reporting/` and should be replaced with actual screenshots.
 
 ## Schema & Validation (T2)
 - Schema lives in `config.yml` under `rules.schema`.

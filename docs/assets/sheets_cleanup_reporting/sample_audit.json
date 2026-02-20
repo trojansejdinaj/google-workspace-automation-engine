@@ -1,0 +1,39 @@
+{
+  "run": {
+    "duration_ms": 3319,
+    "error_summary": null,
+    "finished_at": "2026-02-20T00:27:59Z",
+    "run_id": "SAMPLE_RUN_ID",
+    "started_at": "2026-02-20T00:27:56Z",
+    "status": "OK",
+    "workflow": "sheets_cleanup_reporting"
+  },
+  "steps": [
+    {
+      "duration_ms": 0,
+      "error_summary": null,
+      "finished_at": "2026-02-20T00:27:56Z",
+      "metrics": {
+        "schema_cols": 6
+      },
+      "started_at": "2026-02-20T00:27:56Z",
+      "status": "OK",
+      "step_name": "validate_config"
+    },
+    {
+      "duration_ms": 3318,
+      "error_summary": null,
+      "finished_at": "2026-02-20T00:27:59Z",
+      "metrics": {
+        "artifacts_index": "artifacts/index.json",
+        "dedupe_removed": 1,
+        "invalid_count": 3,
+        "rows_in": 5,
+        "rows_out": 2
+      },
+      "started_at": "2026-02-20T00:27:56Z",
+      "status": "OK",
+      "step_name": "run_cleanup"
+    }
+  ]
+}

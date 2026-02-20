@@ -1,0 +1,9 @@
+metric,value
+run_id,SAMPLE_RUN_ID
+generated_at_utc,2026-02-20T00:27:56Z
+rows_in,5
+rows_valid_pre_dedupe,3
+invalid_count,3
+dedupe_removed,1
+rows_out,2
+invalid_rate,0.6000

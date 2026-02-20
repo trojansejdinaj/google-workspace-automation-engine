@@ -1,0 +1,3 @@
+run_id,workflow,run_status,run_started_at,run_finished_at,run_duration_ms,step_name,step_status,step_started_at,step_finished_at,step_duration_ms,step_error_summary,step_metrics
+SAMPLE_RUN_ID,sheets_cleanup_reporting,OK,2026-02-20T00:27:56Z,2026-02-20T00:27:59Z,3319,validate_config,OK,2026-02-20T00:27:56Z,2026-02-20T00:27:56Z,0,,"{""schema_cols"": 6}"
+SAMPLE_RUN_ID,sheets_cleanup_reporting,OK,2026-02-20T00:27:56Z,2026-02-20T00:27:59Z,3319,run_cleanup,OK,2026-02-20T00:27:56Z,2026-02-20T00:27:59Z,3318,,"{""artifacts_index"": ""artifacts/index.json"", ""dedupe_removed"": 1, ""invalid_count"": 3, ""rows_in"": 5, ""rows_out"": 2}"
