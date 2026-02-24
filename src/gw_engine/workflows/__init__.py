@@ -21,7 +21,10 @@ def get(name: str) -> WorkflowFactory | None:
 def _register_builtin_workflows() -> None:
     # Side-effect imports to populate _REGISTRY via register().
     # Kept inside a function to satisfy ruff E402.
-    from gw_engine.workflows import sheets_cleanup_reporting  # noqa: F401
+    from gw_engine.workflows import (
+        gmail_to_sheets_intake,  # noqa: F401
+        sheets_cleanup_reporting,  # noqa: F401
+    )
 
 
 _register_builtin_workflows()

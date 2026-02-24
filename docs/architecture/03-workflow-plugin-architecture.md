@@ -72,3 +72,9 @@ Workflow code should focus on:
 - validating config
 - calling Workspace APIs / transforms
 - writing outputs + registering artifacts
+
+## Gmail intake adapter boundary
+
+- Responsibilities: search/fetch Gmail messages, decode bodies, and support fixture generation for parser tests.
+- Boundary: workflow step calls `GmailAdapter`; `GmailAdapter` uses the client factory service (`gw_engine.clients`).
+- Workflow remains orchestration-only: config, metrics, outputs, and artifact registration.

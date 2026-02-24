@@ -47,6 +47,14 @@ Each run MUST produce:
 - `run_start`
 - `run_end` (includes `duration_ms`)
 
+## Gmail intake events
+
+- `gmail_search_start`
+- `gmail_search_ok`
+- `gmail_fetch_start`
+- `gmail_fetch_ok`
+- `gmail_intake_summary` (decode summary equivalent; includes decoded plain/html/none counts)
+
 ## Notes
 - Secrets must never be logged.
 - Prefer stable keys over free-form messages.

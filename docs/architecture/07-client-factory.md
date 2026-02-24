@@ -22,6 +22,13 @@ A small module that builds **Google API clients** (Drive, Sheets, Gmail) with:
 
 It's called by the Engine Runtime to get ready-to-use API clients.
 
+## Gmail client creation (readonly intake)
+
+- Service name: `gmail`
+- API version: `v1`
+- Required readonly scope: `https://www.googleapis.com/auth/gmail.readonly`
+- The client factory returns an authenticated `googleapiclient` Gmail service object ready for `.users().messages()` calls.
+
 ---
 
 ## How to use it in workflows

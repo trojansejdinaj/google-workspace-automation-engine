@@ -15,6 +15,12 @@ This workflow will:
 4) apply success/failure labels in Gmail for triage feedback
 5) write per-run artifacts under `runs/<run_id>/` for auditability
 
+## Gmail adapter: search + fetch + body decode
+Supported in T2:
+- Search messages with configured Gmail query inputs.
+- Fetch message details needed for downstream parsing.
+- Decode message body content from Gmail payload encoding.
+
 ## 2-minute demo (T1 scaffold)
 
 ```bash

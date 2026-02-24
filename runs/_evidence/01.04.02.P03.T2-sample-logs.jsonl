@@ -1,0 +1,10 @@
+{"ts": "2026-02-24T09:13:49Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_start", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2}
+{"ts": "2026-02-24T09:13:49Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_ok", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2, "count": 2}
+{"ts": "2026-02-24T09:13:49Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_start", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:13:49Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_ok", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:13:49Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_intake_summary", "run_id": "P03T2", "ids_found": 2, "fetched_count": 2, "decoded_plain_count": 1, "decoded_html_count": 1, "decoded_none_count": 0}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_start", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_ok", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2, "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_start", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_ok", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_intake_summary", "run_id": "P03T2", "ids_found": 2, "fetched_count": 2, "decoded_plain_count": 1, "decoded_html_count": 1, "decoded_none_count": 0}

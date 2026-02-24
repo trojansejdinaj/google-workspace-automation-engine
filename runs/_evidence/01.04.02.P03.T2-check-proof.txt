@@ -1,0 +1,27 @@
+RESULT:
+PASS (offline T2 check using equivalent config + mocked Gmail service path)
+
+Config dump (redacted):
+- source: workflows/gmail_to_sheets_intake/config.example.yml (equivalent)
+- workflow.name: gmail_to_sheets_intake
+- gmail.gmail_query: newer_than:7d -in:chats -category:social
+- gmail.labels.success: gw/processed
+- gmail.labels.needs_review: gw/needs-review
+- gmail.labels.error: gw/error
+- sheets.sheet_id: [REDACTED]
+- sheets.tabs.intake_tab: intake
+- sheets.tabs.needs_review_tab: needs_review
+- options.max_messages: 25
+
+Logs (5–10 lines):
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_start", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_search_ok", "run_id": "P03T2", "query": "newer_than:7d -in:chats", "max_results": 2, "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_start", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_fetch_ok", "run_id": "P03T2", "count": 2}
+{"ts": "2026-02-24T09:14:34Z", "level": "INFO", "component": "fixture_dump", "event": "gmail_intake_summary", "run_id": "P03T2", "ids_found": 2, "fetched_count": 2, "decoded_plain_count": 1, "decoded_html_count": 1, "decoded_none_count": 0}
+
+Output snippet:
+id=m1
+subject=Build status update
+chosen=plain
+text_preview_120=Service update: all systems nominal.
