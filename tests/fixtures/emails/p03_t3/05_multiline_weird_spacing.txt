@@ -1,0 +1,24 @@
+Subject:   Intake details with notes and shipping block
+
+Hi Team,
+
+Name   :   Luca Fernandez
+Company:BrightLine Interiors Co.
+Email:
+    luca.fernandez@brightline-demo.io
+Phone :   (213) 555 0114
+Amount :   $ 2,075.35
+Order # : BR-90210-A
+
+Address:
+  4300 West Sunset Blvd
+  Suite  120
+  Los Angeles, CA 90029
+
+Notes:
+  Please keep the packing slip separate.
+  Deliver between 9:00-11:00 AM.
+  Reference lobby desk code 41B.
+
+Thanks,
+Luca

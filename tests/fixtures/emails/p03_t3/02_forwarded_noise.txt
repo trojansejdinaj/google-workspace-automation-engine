@@ -1,0 +1,27 @@
+Fwd: Re: Updated billing details for project Atlas
+
+---------- Forwarded message ---------
+From: "Mina Patel" <mina.patel@vendor-mail.test>
+Date: Mon, Feb 23, 2026 at 4:12 PM
+Subject: Re: Updated billing details for project Atlas
+To: Ops Inbox <ops@example.test>
+Cc: support@vendor-mail.test
+
+Hi team,
+
+Resending details below because the previous thread had an attachment issue.
+
+Name: Mina Patel
+Company: Atlas Field Services Inc.
+Email: billing@atlas-field.test
+Phone: +44 20 7946 1022
+Amount: €3,880.00
+Order: ORD-ATLAS-8821
+
+--
+Mina Patel
+Senior Operations Manager
+Atlas Field Services Inc.
+
+Confidentiality Notice: This email and any attachments are intended only for the named recipients.
+Please delete if received in error.

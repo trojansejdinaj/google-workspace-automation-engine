@@ -11,6 +11,8 @@ from gw_engine.contracts import RunState, Step, StepResult, Workflow
 from gw_engine.gmail_adapter import GmailAdapter
 from gw_engine.gmail_decode import decode_message_bodies
 from gw_engine.logger import JsonlLogger
+from gw_engine.parsing.contracts import ParsedEmail
+from gw_engine.parsing.email_parser import parse_email
 from gw_engine.run_context import RunContext
 from gw_engine.workflows import register as _register
 
@@ -58,6 +60,16 @@ def _write_json(path: Path, payload: Any) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
         f.write("\n")
+    tmp.replace(path)
+
+
+def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        for row in rows:
+            json.dump(row, f, sort_keys=True)
+            f.write("\n")
     tmp.replace(path)
 
 
@@ -115,7 +127,23 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             else:
                 decoded_none_count += 1
 
+            message_id = str(message.get("id") or "")
+            from_addr = _header_value(message, "From")
+            to_addr = _header_value(message, "To")
+            subject = _header_value(message, "Subject")
+            date = _header_value(message, "Date")
+
             body_text = str(decoded.get("text") or "")
+            parsed: ParsedEmail = parse_email(subject=subject, from_addr=from_addr, body=body_text)
+
+            log.info(
+                "email_parsed",
+                message_id=message_id,
+                confidence=parsed.confidence,
+                parsed_keys=list(parsed.fields.keys()),
+                error_count=len(parsed.errors),
+            )
+
             warnings_any = decoded.get("warnings")
             warnings = (
                 [str(w) for w in warnings_any]
@@ -125,18 +153,32 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 else []
             )
 
+            parse_errors = [
+                {
+                    "code": error.code,
+                    "message": error.message,
+                    "field": error.field,
+                }
+                for error in parsed.errors
+            ]
+
             intake_items.append(
                 {
-                    "message_id": str(message.get("id") or ""),
+                    "message_id": message_id,
                     "thread_id": str(message.get("threadId") or ""),
                     "internal_date": str(message.get("internalDate") or ""),
-                    "from": _header_value(message, "From"),
-                    "to": _header_value(message, "To"),
-                    "subject": _header_value(message, "Subject"),
-                    "date": _header_value(message, "Date"),
+                    "from": from_addr,
+                    "to": to_addr,
+                    "subject": subject,
+                    "date": date,
                     "body_text": body_text,
                     "body_chosen": chosen,
                     "decode_warnings": warnings,
+                    "parsed": parsed.fields,
+                    "parser_confidence": parsed.confidence,
+                    "parser_errors": parse_errors,
+                    "parse_confidence": parsed.confidence,
+                    "parse_errors": parse_errors,
                 }
             )
 
@@ -159,6 +201,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
 
         intake_path = ctx.artifacts_dir / "gmail_intake_items.json"
         summary_path = ctx.artifacts_dir / "gmail_intake_summary.json"
+        parsed_emails_path = ctx.artifacts_dir / "parsed_emails.jsonl"
 
         summary_payload = {
             "run_id": ctx.run_id,
@@ -184,6 +227,25 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         _write_json(intake_path, intake_items)
         _write_json(summary_path, summary_payload)
 
+        parsed_rows = [
+            {
+                "message_id": str(item.get("message_id") or ""),
+                "subject": str(item.get("subject") or ""),
+                "from_addr": str(item.get("from") or ""),
+                "parser_confidence": item.get("parser_confidence", item.get("parse_confidence")),
+                "parsed": item.get("parsed") if isinstance(item.get("parsed"), dict) else {},
+                "parser_errors": (
+                    item.get("parser_errors")
+                    if isinstance(item.get("parser_errors"), list)
+                    else item.get("parse_errors")
+                    if isinstance(item.get("parse_errors"), list)
+                    else []
+                ),
+            }
+            for item in intake_items
+        ]
+        _write_jsonl(parsed_emails_path, parsed_rows)
+
         register_artifact(
             ctx,
             name="gmail_intake_items_json",
@@ -203,6 +265,13 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 "decoded_html_count": decoded_html_count,
                 "decoded_none_count": decoded_none_count,
             },
+        )
+        register_artifact(
+            ctx,
+            name="parsed_emails_jsonl",
+            path=parsed_emails_path,
+            type="jsonl",
+            metadata={"count": len(parsed_rows)},
         )
 
         return StepResult(

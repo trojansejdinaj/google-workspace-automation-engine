@@ -1,0 +1,31 @@
+# 01.04.02.P03.T3 proof
+
+RESULT: Parser rules + structured extraction implemented; outputs include parsed dict + confidence/errors; 5+ fixtures; unit tests green; artifacts/logs captured.
+
+## Config dump (redacted)
+# workflows/gmail_to_sheets_intake/config.local.yml (redacted)
+# gmail:
+#   query: "..."
+#   max_results: 5
+# sheets:
+#   sheet_id: <REDACTED>
+#   tab: <REDACTED>
+
+## Checks
+make fmt
+make lint
+make test
+# (optional) uv run python -m pytest -q -m integration
+
+## Logs (5–10 lines)
+{"ts":"<TS>","level":"INFO","component":"cli","event":"run_start","run_id":"<RUN_ID>","workflow":"gmail_to_sheets_intake"}
+{"ts":"<TS>","level":"INFO","component":"engine","event":"step_start","run_id":"<RUN_ID>","step":"collect_intake","step_idx":1,"status":"RUNNING"}
+{"ts":"<TS>","level":"INFO","component":"gmail_to_sheets_intake","event":"email_parsed","run_id":"<RUN_ID>","message_id":"<ID1>","confidence":0.82,"parsed_keys":["customer_name","customer_email","reference_id"],"error_count":0}
+{"ts":"<TS>","level":"INFO","component":"gmail_to_sheets_intake","event":"email_parsed","run_id":"<RUN_ID>","message_id":"<ID2>","confidence":0.55,"parsed_keys":["customer_email"],"error_count":1}
+{"ts":"<TS>","level":"INFO","component":"engine","event":"step_end","run_id":"<RUN_ID>","step":"collect_intake","step_idx":1,"status":"SUCCESS"}
+{"ts":"<TS>","level":"INFO","component":"cli","event":"run_end","run_id":"<RUN_ID>","status":"SUCCESS"}
+
+## Output snippet
+# artifacts/parsed_emails.jsonl (2 lines, redacted)
+{"message_id":"<ID1>","subject":"...","from_addr":"<REDACTED>","parser_confidence":0.82,"parsed":{"customer_name":"...","customer_email":"...","reference_id":"...","amount_value":123.45,"amount_currency":"USD"},"parser_errors":[]}
+{"message_id":"<ID2>","subject":"...","from_addr":"<REDACTED>","parser_confidence":0.55,"parsed":{"customer_email":"..."},"parser_errors":[{"code":"missing_field","field":"reference_id","message":"..."}]}

@@ -21,6 +21,13 @@ Supported in T2:
 - Fetch message details needed for downstream parsing.
 - Decode message body content from Gmail payload encoding.
 
+## Parsing + Structured Extraction
+- Parser code: `src/gw_engine/parsing/email_parser.py`.
+- Attempted fields: `name`, `company`, `email`, `phone`, `amount`, `invoice_or_order_id` (label-first, then fallbacks).
+- Confidence/errors: confidence is a normalized score in `[0,1]`; errors are structured with codes such as `missing_field`, `ambiguous_match`, and `invalid_format`.
+- Parsed output artifact: `runs/<run_id>/artifacts/parsed_emails.jsonl` (PII-safe shape; excludes raw body text).
+- Extending rules: add/update a label list or regex extractor in `email_parser.py`, then route it through `parse_email(...)` and add/update fixture tests.
+
 ## 2-minute demo (T1 scaffold)
 
 ```bash

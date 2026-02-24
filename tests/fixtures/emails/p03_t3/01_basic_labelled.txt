@@ -1,0 +1,17 @@
+Subject: New Invoice Submission
+
+Hello Finance Team,
+
+Name: Jordan Blake
+Company: Northstar Office Supplies LLC
+Email: jordan.blake@northstar-example.com
+Phone: +1 (415) 555-0189
+Amount: USD 1,249.50
+Invoice: INV-2026-0042
+
+Please process this invoice for the February replenishment order.
+Payment terms are Net 15.
+
+Thanks,
+Jordan
+Accounts Coordinator

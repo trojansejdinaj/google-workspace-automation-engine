@@ -1,0 +1,20 @@
+Subject: Multiple invoices in one thread
+
+Hello AP,
+
+Name: Priya Rao
+Company: Meridian Industrial Group
+Email: priya.rao@meridian-example.org
+Phone: +1-312-555-0191
+
+Amount: USD 1,200.00
+Amount: USD 1,450.00
+Invoice: INV-7781
+Invoice: INV-7782
+Order ID: PO-556200
+
+Please advise which one you want me to prioritize first.
+If only one can be processed today, use INV-7782.
+
+Regards,
+Priya
