@@ -5,6 +5,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 WORKFLOW="gmail_to_sheets_intake"
-CONFIG="workflows/${WORKFLOW}/config.example.yml"
+LOCAL_CONFIG="workflows/${WORKFLOW}/config.local.yml"
+EXAMPLE_CONFIG="workflows/${WORKFLOW}/config.example.yml"
 
-uv run python -m gw_engine.cli run "$WORKFLOW" --config "$CONFIG"
+if [[ -f "$LOCAL_CONFIG" ]]; then
+	CONFIG="$LOCAL_CONFIG"
+else
+	CONFIG="$EXAMPLE_CONFIG"
+fi
+
+echo "Using config: ${CONFIG}"
+uv run gw run "$WORKFLOW" --config "$CONFIG"

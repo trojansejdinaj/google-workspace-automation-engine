@@ -1,0 +1,18 @@
+workflow:
+  name: gmail_to_sheets_intake
+
+gmail:
+  gmail_query: 'newer_than:7d -in:chats -category:social'
+  labels:
+    success: 'gw/processed'
+    needs_review: 'gw/needs-review'
+    error: 'gw/error'
+
+sheets:
+  sheet_id: 'DUMMY_SHEET_ID'
+  tabs:
+    intake_tab: 'intake'
+    needs_review_tab: 'needs_review'
+
+options:
+  max_messages: 25

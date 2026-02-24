@@ -1,0 +1,40 @@
+# 01.04.02.P03.T1 proof
+RESULT: PASS — scaffold created for gmail_to_sheets_intake (README + config + demo.sh)
+
+## Config dump (redacted)
+# source: workflows/gmail_to_sheets_intake/config.example.yml
+# do not paste secrets (tokens, private keys, client secrets, full IDs)
+workflow:
+  name: gmail_to_sheets_intake
+
+gmail:
+  gmail_query: 'newer_than:7d -in:chats -category:social'
+  labels:
+    success: 'gw/processed'
+    needs_review: 'gw/needs-review'
+    error: 'gw/error'
+
+sheets:
+  sheet_id: 'DUMMY_SHEET_ID'
+  tabs:
+    intake_tab: 'intake'
+    needs_review_tab: 'needs_review'
+
+options:
+  max_messages: 25
+
+## Logs (5-10 lines)
++ set -euo pipefail
+++ dirname workflows/gmail_to_sheets_intake/demo.sh
++ cd workflows/gmail_to_sheets_intake/../..
++ pwd
++ REPO_ROOT=/home/trojan/projects/google-workspace-automation-engine
++ WORKFLOW=gmail_to_sheets_intake
++ LOCAL_CONFIG=workflows/gmail_to_sheets_intake/config.local.yml
++ EXAMPLE_CONFIG=workflows/gmail_to_sheets_intake/config.example.yml
+Using config: workflows/gmail_to_sheets_intake/config.example.yml
+Missing workflow entrypoint: /home/trojan/projects/google-workspace-automation-engine/workflows/gmail_to_sheets_intake/workflow.py
+
+## Output snippet
+Missing workflow entrypoint: /home/trojan/projects/google-workspace-automation-engine/workflows/gmail_to_sheets_intake/workflow.py
+Note: expected at T1 (scaffold only); demo command wiring is valid and fails due unimplemented workflow logic.
