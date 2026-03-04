@@ -48,6 +48,41 @@ bash ./demo.sh
 
 T1 provides scaffold only. The demo command is in place and will run end-to-end once workflow implementation is added in later tasks.
 
+## Run + Verify (T4)
+1) Create local config from example:
+
+```bash
+cd workflows/gmail_to_sheets_intake
+cp -n config.example.yml config.local.yml
+```
+
+Edit `config.local.yml` and set a redacted-safe value in docs/proof (do not commit real IDs):
+- `sheets.sheet_id: <SHEET_ID_REDACTED>`
+
+2) Run the workflow (repo CLI entrypoint):
+
+```bash
+uv run gw run gmail_to_sheets_intake --config workflows/gmail_to_sheets_intake/config.local.yml
+```
+
+3) Verification checklist:
+- `triage` tab has rows keyed by `message_id`.
+- `gmail_link` opens the matching Gmail message.
+- `status` column exists and is preserved on rerun.
+- `runs/<run_id>/artifacts/triage_export.csv` exists.
+
+4) Evidence checklist:
+- Fill `runs/_evidence/01.04.02.P03.T4-check-proof.txt`.
+- Capture 1-2 screenshots to `docs/assets/gmail_to_sheets_intake/`.
+
+Before committing, run:
+
+```bash
+make fmt
+make lint
+make test
+```
+
 ## Expected outputs
 Standard engine outputs under `runs/<run_id>/`:
 - `logs.jsonl`
@@ -68,3 +103,11 @@ Include:
 1) config dump (sanitized as needed)
 2) 5–10 representative log lines
 3) output snippet from run artifacts/audit output
+
+## Proof / Evidence (T4)
+Capture and store:
+- `runs/<run_id>/artifacts/triage_export.csv` (or a short snippet from it)
+- `runs/_evidence/01.04.02.P03.T4-check-proof.txt` (RESULT, redacted config, logs, output snippet)
+- 1-2 screenshots in `docs/assets/gmail_to_sheets_intake/`:
+	- `portfolio-01.png` (triage tab after run)
+	- `portfolio-02.png` (artifacts view or opened `triage_export.csv` snippet)

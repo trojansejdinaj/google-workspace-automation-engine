@@ -11,8 +11,9 @@ gmail:
 sheets:
   sheet_id: 'DUMMY_SHEET_ID'
   tabs:
-    intake_tab: 'intake'
-    needs_review_tab: 'needs_review'
+    triage_tab: 'triage'
+  defaults:
+    status: 'NEW'
 
 options:
   max_messages: 25

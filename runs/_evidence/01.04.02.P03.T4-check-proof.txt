@@ -1,0 +1,31 @@
+# 01.04.02.P03.T4 check proof
+
+RESULT:
+BLOCKED — real run fails in `collect_intake` due Gmail OAuth refresh failure (`invalid_grant`), so triage upsert/export was not produced yet.
+
+Config dump (redacted):
+- source: workflows/gmail_to_sheets_intake/config.local.yml (redacted)
+- workflow.name: gmail_to_sheets_intake
+- gmail.gmail_query: newer_than:7d -in:chats -category:social
+- gmail.labels.success: gw/processed
+- gmail.labels.needs_review: gw/needs-review
+- gmail.labels.error: gw/error
+- sheets.sheet_id: <SHEET_ID_REDACTED>
+- sheets.tabs.triage_tab: triage
+- sheets.defaults.status: NEW
+- options.max_messages: 25
+
+Logs (5–10 lines):
+{"ts":"2026-03-04T16:35:50Z","level":"INFO","component":"cli","event":"run_start","run_id":"3294e6a8a8f0484fb5809268c9feb0f0","workflow":"gmail_to_sheets_intake"}
+{"ts":"2026-03-04T16:35:50Z","level":"INFO","component":"cli","event":"step_start","run_id":"3294e6a8a8f0484fb5809268c9feb0f0","step":"validate_config","step_idx":1,"status":"RUNNING"}
+{"ts":"2026-03-04T16:35:50Z","level":"INFO","component":"cli","event":"config_valid","workflow":"gmail_to_sheets_intake","query":"newer_than:7d -in:chats -category:social","max_messages":25}
+{"ts":"2026-03-04T16:35:50Z","level":"INFO","component":"cli","event":"step_start","run_id":"3294e6a8a8f0484fb5809268c9feb0f0","step":"collect_intake","step_idx":2,"status":"RUNNING"}
+{"ts":"2026-03-04T16:35:50Z","level":"ERROR","component":"cli","event":"step_failed","run_id":"3294e6a8a8f0484fb5809268c9feb0f0","workflow":"gmail_to_sheets_intake","step":"collect_intake","step_idx":2,"error_type":"RefreshError","error_message":"('invalid_grant: Bad Request', {'error': 'invalid_grant', 'error_description': 'Bad Request'})","error_artifact_path":"errors/gmail_to_sheets_intake__collect_intake.json"}
+{"ts":"2026-03-04T16:35:50Z","level":"INFO","component":"cli","event":"run_end","run_id":"3294e6a8a8f0484fb5809268c9feb0f0","ok":false}
+
+Output snippet (first ~5 lines) from artifacts/triage_export.csv:
+NOT AVAILABLE YET (run failed before `upsert_triage_sheet`).
+
+Expected after OAuth fix and rerun:
+message_id,thread_id,from,subject,date,parsed,parser_confidence,gmail_link,status
+<MESSAGE_ID>,<THREAD_ID>,<FROM>,<SUBJECT>,<DATE>,"{...}",<CONFIDENCE>,https://mail.google.com/mail/u/0/#inbox/<MESSAGE_ID>,NEW

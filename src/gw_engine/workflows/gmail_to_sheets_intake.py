@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from gw_engine.logger import JsonlLogger
 from gw_engine.parsing.contracts import ParsedEmail
 from gw_engine.parsing.email_parser import parse_email
 from gw_engine.run_context import RunContext
+from gw_engine.sheets_triage import upsert_triage_table
 from gw_engine.workflows import register as _register
 
 
@@ -182,6 +184,20 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 }
             )
 
+        triage_rows = [
+            {
+                "message_id": str(item.get("message_id") or ""),
+                "thread_id": str(item.get("thread_id") or ""),
+                "from": str(item.get("from") or ""),
+                "subject": str(item.get("subject") or ""),
+                "date": str(item.get("date") or ""),
+                "parsed": item.get("parsed") if isinstance(item.get("parsed"), dict) else {},
+                "parser_confidence": item.get("parser_confidence", item.get("parse_confidence")),
+            }
+            for item in intake_items
+        ]
+        state.data["triage_rows"] = triage_rows
+
         if intake_items:
             first_preview = str(intake_items[0].get("body_text") or "")[:120]
             log.debug("gmail_decode_preview", run_id=ctx.run_id, body_preview_120=first_preview)
@@ -286,9 +302,94 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             },
         )
 
+    def upsert_triage_sheet(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
+        sheets_cfg = cfg.get("sheets")
+        if not isinstance(sheets_cfg, dict):
+            return StepResult(ok=False, error="Invalid config: missing sheets section")
+
+        sheet_id = str(sheets_cfg.get("sheet_id") or "").strip()
+        if not sheet_id or sheet_id in {"DUMMY_SHEET_ID", "REPLACE_ME"}:
+            return StepResult(ok=False, error="Invalid config: missing sheets.sheet_id")
+
+        tabs = sheets_cfg.get("tabs") if isinstance(sheets_cfg.get("tabs"), dict) else {}
+        triage_tab = str(tabs.get("triage_tab") or "triage").strip()
+
+        defaults = (
+            sheets_cfg.get("defaults") if isinstance(sheets_cfg.get("defaults"), dict) else {}
+        )
+        default_status = str(defaults.get("status") or "NEW").strip() or "NEW"
+
+        triage_rows = state.data.get("triage_rows")
+        if not isinstance(triage_rows, list):
+            triage_rows = []
+
+        app_cfg = load_config()
+        settings = settings_from_env()
+        sheets_svc = build_service(cfg=app_cfg, api="sheets", settings=settings)
+
+        resp = (
+            sheets_svc.spreadsheets()
+            .values()
+            .get(
+                spreadsheetId=sheet_id,
+                range=f"{triage_tab}!A1:Z",
+            )
+            .execute()
+        )
+        existing_values = resp.get("values") if isinstance(resp, dict) else []
+        if not isinstance(existing_values, list):
+            existing_values = []
+
+        merged_table = upsert_triage_table(
+            existing_values=existing_values,
+            new_rows=triage_rows,
+            default_status=default_status,
+            preserve_existing_status=True,
+            run_id=ctx.run_id,
+        )
+
+        sheets_svc.spreadsheets().values().update(
+            spreadsheetId=sheet_id,
+            range=f"{triage_tab}!A1",
+            valueInputOption="RAW",
+            body={"values": merged_table},
+        ).execute()
+
+        export_path = ctx.artifacts_dir / "triage_export.csv"
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        with export_path.open("w", encoding="utf-8", newline="") as f:
+            w = csv.writer(f)
+            w.writerows(merged_table)
+
+        register_artifact(
+            ctx,
+            name="triage_export_csv",
+            path=export_path,
+            type="csv",
+            metadata={"rows": max(0, len(merged_table) - 1), "tab": triage_tab},
+        )
+
+        preview = merged_table[: min(len(merged_table), 6)]
+        log.info(
+            "triage_upsert_done",
+            sheet_id=sheet_id,
+            tab=triage_tab,
+            rows_written=max(0, len(merged_table) - 1),
+            preview_rows=preview,
+        )
+
+        return StepResult(
+            ok=True,
+            outputs={
+                "triage_rows_written": max(0, len(merged_table) - 1),
+                "triage_export": export_path.relative_to(ctx.run_dir).as_posix(),
+            },
+        )
+
     steps = [
         Step(name="validate_config", fn=validate_config),
         Step(name="collect_intake", fn=collect_intake),
+        Step(name="upsert_triage_sheet", fn=upsert_triage_sheet),
     ]
     return Workflow(name=name, steps=steps)
 
