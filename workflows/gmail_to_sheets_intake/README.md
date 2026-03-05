@@ -40,6 +40,49 @@ Supported in T2:
   - `archive_on_failure` removes `INBOX` from needs_review items.
 - Gmail scope requirement: `https://www.googleapis.com/auth/gmail.modify` (labels/archive actions).
 
+## Attachments (T6)
+
+Optional attachment support is controlled by `gmail_to_sheets_intake` config:
+
+```yaml
+attachments:
+  enabled: false
+  max_size_bytes: 5242880
+  allowed_mime_types:
+    - "application/pdf"
+    - "image/jpeg"
+    - "image/png"
+  allowed_extensions:
+    - ".pdf"
+    - ".jpg"
+    - ".png"
+  route_mode: "artifacts" # artifacts | drive
+  drive_folder_id: ""
+```
+
+When enabled, step `attachments` runs after parsing and triage upsert and for each matched message:
+1) list attachments via Gmail API
+2) download each attachment body
+3) validate against size + MIME/extension allowlist
+4) invalid -> quarantine to `runs/<run_id>/attachments/quarantine/`
+5) valid -> route to:
+   - `runs/<run_id>/attachments/routed/` if `route_mode: artifacts`
+   - Drive folder `drive_folder_id` if `route_mode: drive`
+
+Run outputs include:
+- `runs/<run_id>/attachments/raw/` (downloaded bytes)
+- `runs/<run_id>/attachments/quarantine/`
+- `runs/<run_id>/attachments/routed/` (for artifacts mode)
+- `runs/<run_id>/attachments/manifest.jsonl` (per-attachment status + sha256)
+- `runs/<run_id>/attachments/summary.jsonl` (attachment processing run-summary)
+
+Artifact index entries added by this step:
+- `attachments_manifest_jsonl` for manifest
+- `attachments_summary_jsonl` for summary
+
+Attachment summary logs:
+- `gmail_attachments_summary` event includes `total`, `routed`, `quarantined`, `errors`.
+
 ## 2-minute demo (T1 scaffold)
 
 ```bash

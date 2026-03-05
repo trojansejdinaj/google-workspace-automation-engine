@@ -20,3 +20,17 @@ options:
   min_confidence: 0.6
   archive_on_success: false
   archive_on_failure: false
+
+attachments:
+  enabled: false
+  max_size_bytes: 5242880
+  allowed_mime_types:
+    - "application/pdf"
+    - "image/jpeg"
+    - "image/png"
+  allowed_extensions:
+    - ".pdf"
+    - ".jpg"
+    - ".png"
+  route_mode: "artifacts"
+  drive_folder_id: ""

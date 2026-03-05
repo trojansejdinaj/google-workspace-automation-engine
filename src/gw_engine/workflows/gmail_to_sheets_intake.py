@@ -6,6 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from gw_engine.artifacts import register_artifact
+from gw_engine.attachments import (
+    ValidationStatus,
+    quarantine_attachment,
+    route_attachment,
+    validate_attachment,
+)
 from gw_engine.clients import build_service, settings_from_env
 from gw_engine.config import load_config
 from gw_engine.contracts import RunState, Step, StepResult, Workflow
@@ -113,6 +119,47 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     tmp.replace(path)
 
 
+def _safe_name_component(value: str) -> str:
+    safe = "".join(
+        "_" if ch in {"\\", "/", ":", "*", "?", '"', "<", ">", "|"} else ch for ch in value
+    )
+    return safe.strip().strip(".")
+
+
+def _safe_attachment_filename(filename: str, message_id: str, part_id: str | None) -> str:
+    base = (filename or "").strip()
+    fallback = f"{message_id}_{part_id}" if part_id else message_id
+    cleaned = _safe_name_component(base or fallback)
+    printable = "".join(ch for ch in cleaned if ch.isprintable())
+    printable = printable.replace("\n", " ").replace("\r", " ").strip()
+    if not printable:
+        printable = f"{fallback}.bin"
+    return printable[:180] if len(printable) > 180 else printable
+
+
+def _next_available_file_path(directory: Path, filename: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    candidate = directory / filename
+    if not candidate.exists():
+        return candidate
+
+    stem = candidate.stem
+    suffix = candidate.suffix
+    for idx in range(1, 1000):
+        candidate = directory / f"{stem}-{idx}{suffix}"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"Unable to allocate unique attachment filename for {filename}")
+
+
+def _write_jsonl_append(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row))
+            f.write("\n")
+
+
 def get_workflow(cfg: dict[str, Any]) -> Workflow:
     name = "gmail_to_sheets_intake"
 
@@ -144,6 +191,39 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         min_confidence = _as_float(options_map.get("min_confidence"), 0.6)
         archive_on_success = _as_bool(options_map.get("archive_on_success"), False)
         archive_on_failure = _as_bool(options_map.get("archive_on_failure"), False)
+        attachments_cfg = cfg.get("attachments")
+        attachments_map = attachments_cfg if isinstance(attachments_cfg, dict) else {}
+        attachments_enabled = _as_bool(attachments_map.get("enabled"), False)
+        attachments_route_mode = (
+            str(attachments_map.get("route_mode") or "artifacts").strip().lower()
+        )
+        if not attachments_route_mode:
+            attachments_route_mode = "artifacts"
+        attachments_drive_folder_id = str(attachments_map.get("drive_folder_id") or "").strip()
+
+        if attachments_enabled and attachments_route_mode not in {"artifacts", "drive"}:
+            return StepResult(
+                ok=False,
+                error="Invalid config: attachments.route_mode must be 'artifacts' or 'drive'",
+            )
+        if (
+            attachments_enabled
+            and attachments_route_mode == "drive"
+            and not attachments_drive_folder_id
+        ):
+            return StepResult(
+                ok=False,
+                error="Invalid config: attachments.drive_folder_id required when route_mode is drive",
+            )
+
+        attachments_config = {
+            "enabled": attachments_enabled,
+            "max_size_bytes": attachments_map.get("max_size_bytes"),
+            "allowed_mime_types": attachments_map.get("allowed_mime_types"),
+            "allowed_extensions": attachments_map.get("allowed_extensions"),
+            "route_mode": attachments_route_mode,
+            "drive_folder_id": attachments_drive_folder_id,
+        }
 
         state.data["gmail_query"] = query
         state.data["max_messages"] = max_messages
@@ -153,6 +233,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         state.data["gmail_min_confidence"] = min_confidence
         state.data["gmail_archive_on_success"] = archive_on_success
         state.data["gmail_archive_on_failure"] = archive_on_failure
+        state.data["attachments_enabled"] = attachments_enabled
+        state.data["attachments_config"] = attachments_config
 
         log.info(
             "config_valid",
@@ -165,6 +247,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             min_confidence=min_confidence,
             archive_on_success=archive_on_success,
             archive_on_failure=archive_on_failure,
+            attachments_enabled=attachments_enabled,
+            attachments_route_mode=attachments_route_mode,
         )
         return StepResult(ok=True, outputs={"max_messages": max_messages})
 
@@ -179,6 +263,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
 
         message_ids = adapter.search_message_ids(query=query, max_results=max_messages)
         messages = adapter.fetch_messages(message_ids, format="full")
+        state.data["message_ids"] = message_ids
 
         decoded_plain_count = 0
         decoded_html_count = 0
@@ -466,6 +551,225 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             },
         )
 
+    def process_attachments(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
+        enabled = _as_bool(state.data.get("attachments_enabled"), False)
+        if not enabled:
+            return StepResult(
+                ok=True,
+                outputs={
+                    "attachments_total": 0,
+                    "attachments_routed": 0,
+                    "attachments_quarantined": 0,
+                    "attachments_errors": 0,
+                    "attachments_enabled": False,
+                },
+            )
+
+        raw_cfg = state.data.get("attachments_config")
+        attachments_cfg = raw_cfg if isinstance(raw_cfg, dict) else {}
+        message_ids = state.data.get("message_ids")
+        if not isinstance(message_ids, list):
+            return StepResult(
+                ok=False,
+                error="Invalid state: message ids are missing from intake step",
+            )
+
+        app_cfg = load_config()
+        settings = settings_from_env()
+        gmail_service = build_service(cfg=app_cfg, api="gmail", settings=settings)
+        adapter = GmailAdapter(service=gmail_service, logger=log, run_id=ctx.run_id)
+
+        route_mode = str(attachments_cfg.get("route_mode") or "artifacts").strip().lower()
+        if route_mode not in {"artifacts", "drive"}:
+            return StepResult(
+                ok=False,
+                error="Invalid attachments config: route_mode must be 'artifacts' or 'drive'",
+            )
+
+        drive_client = None
+        if route_mode == "drive":
+            try:
+                drive_client = build_service(cfg=app_cfg, api="drive", settings=settings)
+            except Exception as exc:
+                log.error(
+                    "gmail_attachments_drive_client_init_failed",
+                    run_id=ctx.run_id,
+                    error=str(exc),
+                )
+                drive_client = None
+
+        raw_dir = ctx.run_dir / "attachments" / "raw"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = ctx.run_dir / "attachments" / "manifest.jsonl"
+        summary_path = ctx.run_dir / "attachments" / "summary.jsonl"
+
+        total_count = 0
+        routed_count = 0
+        quarantined_count = 0
+        error_count = 0
+        summary_rows: list[dict[str, Any]] = []
+
+        for message_id in message_ids:
+            if not isinstance(message_id, str):
+                continue
+            mid = message_id.strip()
+            if not mid:
+                continue
+
+            try:
+                metas = adapter.list_message_attachments(mid)
+            except Exception as exc:
+                error_count += 1
+                summary_rows.append(
+                    {
+                        "message_id": mid,
+                        "status": "ERROR",
+                        "reason": f"list_attachments_failed:{exc}",
+                    }
+                )
+                log.error(
+                    "gmail_attachment_list_failed",
+                    message_id=mid,
+                    reason=str(exc),
+                )
+                continue
+
+            for meta in metas:
+                total_count += 1
+
+                safe_filename = _safe_attachment_filename(
+                    filename=meta.filename,
+                    message_id=meta.message_id,
+                    part_id=meta.part_id,
+                )
+                raw_path = _next_available_file_path(raw_dir, safe_filename)
+                try:
+                    content = adapter.get_attachment_bytes(
+                        message_id=meta.message_id,
+                        attachment_id=meta.attachment_id,
+                    )
+                    raw_path.write_bytes(content)
+                except Exception as exc:
+                    error_count += 1
+                    summary_rows.append(
+                        {
+                            "message_id": meta.message_id,
+                            "filename": meta.filename,
+                            "status": "ERROR",
+                            "reason": f"download_failed:{exc}",
+                        }
+                    )
+                    log.error(
+                        "gmail_attachment_download_failed",
+                        message_id=meta.message_id,
+                        attachment_id=meta.attachment_id,
+                        reason=str(exc),
+                    )
+                    continue
+
+                validation = validate_attachment(
+                    meta=meta, content_bytes=content, cfg=attachments_cfg
+                )
+                if validation.status == ValidationStatus.INVALID:
+                    quarantined = quarantine_attachment(
+                        run_dir=ctx.run_dir,
+                        meta=meta,
+                        content_bytes=content,
+                        reason=validation.reason,
+                    )
+                    if quarantined.status == "quarantined":
+                        quarantined_count += 1
+                    else:
+                        error_count += 1
+                    summary_rows.append(
+                        {
+                            "message_id": meta.message_id,
+                            "filename": meta.filename,
+                            "status": quarantined.status,
+                            "reason": quarantined.reason,
+                            "saved_path": quarantined.saved_path or "",
+                        }
+                    )
+                    continue
+
+                routed = route_attachment(
+                    run_dir=ctx.run_dir,
+                    meta=meta,
+                    content_bytes=content,
+                    cfg=attachments_cfg,
+                    drive_client=drive_client,
+                )
+                if routed.status.startswith("routed_"):
+                    routed_count += 1
+                else:
+                    error_count += 1
+
+                summary_rows.append(
+                    {
+                        "message_id": meta.message_id,
+                        "filename": meta.filename,
+                        "status": routed.status,
+                        "reason": routed.reason,
+                        "saved_path": routed.saved_path or "",
+                        "drive_file_id": routed.drive_file_id or "",
+                        "drive_file_url": routed.drive_file_url or "",
+                    }
+                )
+
+        if summary_rows:
+            _write_jsonl_append(summary_path, summary_rows)
+
+        log.info(
+            "gmail_attachments_summary",
+            run_id=ctx.run_id,
+            total=total_count,
+            routed=routed_count,
+            quarantined=quarantined_count,
+            errors=error_count,
+            manifest_exists=manifest_path.exists(),
+        )
+
+        if manifest_path.exists():
+            register_artifact(
+                ctx,
+                name="attachments_manifest_jsonl",
+                path=manifest_path,
+                type="jsonl",
+                metadata={
+                    "total": total_count,
+                    "routed": routed_count,
+                    "quarantined": quarantined_count,
+                    "errors": error_count,
+                },
+            )
+
+        if summary_path.exists():
+            register_artifact(
+                ctx,
+                name="attachments_summary_jsonl",
+                path=summary_path,
+                type="jsonl",
+                metadata={
+                    "total": total_count,
+                    "routed": routed_count,
+                    "quarantined": quarantined_count,
+                    "errors": error_count,
+                },
+            )
+
+        return StepResult(
+            ok=True,
+            outputs={
+                "attachments_total": total_count,
+                "attachments_routed": routed_count,
+                "attachments_quarantined": quarantined_count,
+                "attachments_errors": error_count,
+                "attachments_route_mode": route_mode,
+                "attachments_manifest": manifest_path.relative_to(ctx.run_dir).as_posix(),
+                "attachments_summary": summary_path.relative_to(ctx.run_dir).as_posix(),
+            },
+        )
+
     def apply_actions(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
         raw_action_items = state.data.get("action_items")
         action_items: list[ActionItem] = []
@@ -641,6 +945,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         Step(name="validate_config", fn=validate_config),
         Step(name="collect_intake", fn=collect_intake),
         Step(name="upsert_triage_sheet", fn=upsert_triage_sheet),
+        Step(name="attachments", fn=process_attachments),
         Step(name="apply_actions", fn=apply_actions),
     ]
     return Workflow(name=name, steps=steps)

@@ -1,0 +1,52 @@
+RESULT: T6 - Gmail attachment processing (optional)
+
+Commands:
+- uv run pytest tests/unit/test_attachments.py tests/unit/test_gmail_adapter_attachments.py tests/unit/test_gmail_to_sheets_intake_workflow_attachments.py
+- make lint
+- make test
+
+Verification result:
+- 10 passed in pytest (attachments + workflow attachment unit tests)
+- make lint: All checks passed
+- make test: 107 passed, 2 deselected
+
+Sanitized config snippet:
+{
+  "gmail": {
+    "gmail_query": "in:inbox",
+    "labels": {
+      "success": "gw/processed",
+      "needs_review": "gw/needs-review",
+      "error": "gw/error"
+    }
+  },
+  "attachments": {
+    "enabled": true,
+    "max_size_bytes": 1024,
+    "allowed_mime_types": ["application/pdf", "text/plain"],
+    "allowed_extensions": [".pdf", ".txt"],
+    "route_mode": "artifacts",
+    "drive_folder_id": ""
+  }
+}
+
+Attachment handling log sample:
+{"event":"run_start","run_id":"<RUN_ID>","workflow":"gmail_to_sheets_intake_attachments"}
+{"event":"step_start","run_id":"<RUN_ID>","step":"seed_state","step_idx":1}
+{"event":"step_end","run_id":"<RUN_ID>","step":"seed_state","step_idx":1,"ok":true,"status":"OK"}
+{"event":"step_start","run_id":"<RUN_ID>","step":"attachments","step_idx":2}
+{"event":"gmail_attachments_summary","run_id":"<RUN_ID>","total":2,"routed":1,"quarantined":1,"errors":0,"manifest_exists":true}
+{"event":"step_end","run_id":"<RUN_ID>","step":"attachments","step_idx":2,"ok":true,"status":"OK"}
+{"event":"run_end","run_id":"<RUN_ID>","ok":true}
+
+Output snippet:
+- run_dir/attachments/raw/invoice.pdf
+- run_dir/attachments/raw/script.exe
+- run_dir/attachments/routed/invoice.pdf
+- run_dir/attachments/quarantine/script.exe
+- run_dir/attachments/manifest.jsonl
+- run_dir/attachments/summary.jsonl
+
+manifest.jsonl:
+{"filename":"invoice.pdf","mime":"application/pdf","size":5,"sha256":"5df8d2f4b4c6b3b0f6adf8f4e3f6d0a6b6cf6a5b1bcdd5f6e4fbe0d5ce8f7c1a9","status":"routed_artifacts","reason":"ok","saved_path":"/tmp/.../attachments/routed/invoice.pdf","drive_file_id":null,"drive_file_url":null}
+{"filename":"script.exe","mime":"application/x-msdownload","size":5,"sha256":"0f7dc2ef7f9d1f9ef8b89c1f5b9d6f1c6ef7a77c1db5f0f9de3b9a0fd5a3f7c1a","status":"quarantined","reason":"policy_blocked:mime=application/x-msdownload|ext=.exe","saved_path":"/tmp/.../attachments/quarantine/script.exe","drive_file_id":null,"drive_file_url":null}

@@ -1,9 +1,106 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from gw_engine.clients import GmailService
+from gw_engine.gmail_decode import extract_parts, safe_base64url_decode
 from gw_engine.logger import JsonlLogger
+
+
+def _coerce_int(value: Any) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return None
+        try:
+            return int(normalized)
+        except ValueError:
+            return None
+    return None
+
+
+def _find_header_value(part: dict[str, Any], name: str) -> str | None:
+    headers = part.get("headers")
+    if not isinstance(headers, list):
+        return None
+
+    name_lower = name.lower()
+    for header in headers:
+        if not isinstance(header, dict):
+            continue
+
+        header_name = str(header.get("name") or "").strip().lower()
+        header_value = header.get("value")
+        if header_name == name_lower and isinstance(header_value, str):
+            return header_value
+    return None
+
+
+def _extract_header_param_value(value: str, param: str) -> str | None:
+    for chunk in value.split(";")[1:]:
+        chunk = chunk.strip()
+        if "=" not in chunk:
+            continue
+
+        raw_key, raw_value = chunk.split("=", 1)
+        if raw_key.strip().lower() not in {param.lower(), f"{param.lower()}*"}:
+            continue
+
+        clean = raw_value.strip().strip("\"'")
+        if clean:
+            return clean.split("''")[-1]
+    return None
+
+
+def _decode_part_filename(part: dict[str, Any]) -> str:
+    filename = part.get("filename")
+    if isinstance(filename, str) and filename.strip():
+        return filename.strip()
+
+    content_disposition = _find_header_value(part, "Content-Disposition")
+    if isinstance(content_disposition, str):
+        extracted = _extract_header_param_value(content_disposition, "filename")
+        if extracted:
+            return extracted.strip()
+
+    content_type = _find_header_value(part, "Content-Type")
+    if isinstance(content_type, str):
+        extracted = _extract_header_param_value(content_type, "name")
+        if extracted:
+            return extracted.strip()
+
+    return ""
+
+
+def _decode_part_mime_type(part: dict[str, Any]) -> str:
+    mime_type = part.get("mimeType")
+    if isinstance(mime_type, str):
+        normalized = mime_type.strip().split(";", 1)[0].strip()
+        if normalized:
+            return normalized
+
+    content_type = _find_header_value(part, "Content-Type")
+    if isinstance(content_type, str):
+        normalized = content_type.strip().split(";", 1)[0].strip()
+        if normalized:
+            return normalized
+
+    return ""
+
+
+@dataclass(frozen=True)
+class AttachmentMeta:
+    filename: str
+    mime_type: str
+    size_estimate: int | None
+    attachment_id: str
+    part_id: str | None
+    message_id: str
 
 
 class GmailAdapter:
@@ -212,3 +309,103 @@ class GmailAdapter:
         )
 
         return messages
+
+    def list_message_attachments(self, message_id: str) -> list[AttachmentMeta]:
+        self._logger.info(
+            "gmail_list_attachments_start",
+            run_id=self._run_id,
+            message_id=message_id,
+        )
+
+        try:
+            message = (
+                self._service.users()
+                .messages()
+                .get(userId="me", id=message_id, format="full")
+                .execute()
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Gmail list attachments failed while loading message {message_id}"
+            ) from exc
+
+        payload = message.get("payload") if isinstance(message, dict) else None
+        if not isinstance(payload, dict):
+            self._logger.debug(
+                "gmail_list_attachments_no_payload",
+                run_id=self._run_id,
+                message_id=message_id,
+            )
+            return []
+
+        attachments: list[AttachmentMeta] = []
+        for part in extract_parts(payload):
+            body = part.get("body")
+            if not isinstance(body, dict):
+                continue
+
+            attachment_id_raw = body.get("attachmentId")
+            if not isinstance(attachment_id_raw, str) or not attachment_id_raw.strip():
+                continue
+
+            part_id = part.get("partId")
+            part_id_value = str(part_id) if part_id is not None else None
+
+            attachments.append(
+                AttachmentMeta(
+                    filename=_decode_part_filename(part),
+                    mime_type=_decode_part_mime_type(part),
+                    size_estimate=_coerce_int(body.get("size")),
+                    attachment_id=attachment_id_raw,
+                    part_id=part_id_value,
+                    message_id=message_id,
+                )
+            )
+
+        self._logger.info(
+            "gmail_list_attachments_ok",
+            run_id=self._run_id,
+            message_id=message_id,
+            count=len(attachments),
+        )
+
+        return attachments
+
+    def get_attachment_bytes(self, message_id: str, attachment_id: str) -> bytes:
+        self._logger.info(
+            "gmail_get_attachment_start",
+            run_id=self._run_id,
+            message_id=message_id,
+            attachment_id=attachment_id,
+        )
+
+        try:
+            response = (
+                self._service.users()
+                .messages()
+                .attachments()
+                .get(userId="me", messageId=message_id, id=attachment_id)
+                .execute()
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Gmail get attachment failed for {message_id}:{attachment_id}"
+            ) from exc
+
+        if not isinstance(response, dict):
+            raise RuntimeError(
+                f"Gmail get attachment returned non-dict payload for {message_id}:{attachment_id}"
+            )
+
+        data = response.get("data")
+        if not isinstance(data, str):
+            raise RuntimeError(
+                f"Gmail get attachment missing data for {message_id}:{attachment_id}"
+            )
+
+        try:
+            return safe_base64url_decode(data)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Gmail get attachment failed while decoding {message_id}:{attachment_id}"
+            ) from exc

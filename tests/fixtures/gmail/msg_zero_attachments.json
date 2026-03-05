@@ -1,0 +1,22 @@
+{
+  "id": "msg-zero",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "parts": [
+      {
+        "partId": "0",
+        "mimeType": "text/plain",
+        "body": {
+          "size": 27,
+          "data": "SGVsbG8sIGFuIGVtYWlsIG5vdCB3aXRoIGF0dGFjaG1lbnRz"
+        },
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/plain; charset=UTF-8"
+          }
+        ]
+      }
+    ]
+  }
+}

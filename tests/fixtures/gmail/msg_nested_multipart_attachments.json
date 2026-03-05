@@ -1,0 +1,58 @@
+{
+  "id": "msg-nested",
+  "payload": {
+    "mimeType": "multipart/mixed",
+    "parts": [
+      {
+        "partId": "0",
+        "mimeType": "text/plain",
+        "body": {
+          "size": 33,
+          "data": "VGhpcyBlbWFpbCBpcyBuZXN0ZWQgY2FzZSB0ZXN0IGNvbnRlbnQ="
+        }
+      },
+      {
+        "partId": "1",
+        "mimeType": "multipart/alternative",
+        "parts": [
+          {
+            "partId": "1.1",
+            "mimeType": "application/pdf",
+            "filename": "invoice_42.pdf",
+            "body": {
+              "attachmentId": "ATTACH_PDF",
+              "size": 1024
+            },
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"invoice_42.pdf\""
+              }
+            ]
+          },
+          {
+            "partId": "1.2",
+            "body": {
+              "attachmentId": "ATTACH_PNG",
+              "size": 2048
+            },
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "image/png"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"diagram.png\""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
