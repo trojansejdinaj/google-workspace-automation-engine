@@ -27,12 +27,12 @@ def test_scopes_sheets_oauth_vs_sa() -> None:
     ]
 
 
-def test_scopes_gmail_is_readonly() -> None:
+def test_scopes_gmail_is_modify() -> None:
     assert scopes_for_api(api="gmail", use_service_account=False) == [
-        "https://www.googleapis.com/auth/gmail.readonly"
+        "https://www.googleapis.com/auth/gmail.modify"
     ]
     assert scopes_for_api(api="gmail", use_service_account=True) == [
-        "https://www.googleapis.com/auth/gmail.readonly"
+        "https://www.googleapis.com/auth/gmail.modify"
     ]
 
 

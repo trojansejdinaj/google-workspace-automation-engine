@@ -9,6 +9,7 @@ from gw_engine.artifacts import register_artifact
 from gw_engine.clients import build_service, settings_from_env
 from gw_engine.config import load_config
 from gw_engine.contracts import RunState, Step, StepResult, Workflow
+from gw_engine.gmail_actions import ActionItem, build_action_plan, summarize_plan
 from gw_engine.gmail_adapter import GmailAdapter
 from gw_engine.gmail_decode import decode_message_bodies
 from gw_engine.logger import JsonlLogger
@@ -34,6 +35,43 @@ def _as_int(value: Any, default: int) -> int:
             return int(s)
         except ValueError:
             return default
+    return default
+
+
+def _as_float(value: Any, default: float) -> float:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return default
+        try:
+            return float(s)
+        except ValueError:
+            return default
+    return default
+
+
+def _as_bool(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        if value in {0, 1}:
+            return bool(value)
+        return default
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"true", "1", "yes", "y", "on"}:
+            return True
+        if v in {"false", "0", "no", "n", "off"}:
+            return False
+        return default
     return default
 
 
@@ -87,18 +125,46 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         if not query:
             return StepResult(ok=False, error="Invalid config: missing gmail.gmail_query")
 
+        labels_cfg = gmail_cfg.get("labels")
+        if not isinstance(labels_cfg, dict):
+            return StepResult(ok=False, error="Invalid config: missing gmail.labels section")
+
+        success_label = str(labels_cfg.get("success") or "").strip()
+        needs_review_label = str(labels_cfg.get("needs_review") or "").strip()
+        error_label = str(labels_cfg.get("error") or "").strip()
+        if not success_label or not needs_review_label or not error_label:
+            return StepResult(
+                ok=False,
+                error="Invalid config: gmail.labels must include non-empty success/needs_review/error",
+            )
+
         options_cfg = cfg.get("options")
         options_map = options_cfg if isinstance(options_cfg, dict) else {}
         max_messages = max(1, _as_int(options_map.get("max_messages"), 50))
+        min_confidence = _as_float(options_map.get("min_confidence"), 0.6)
+        archive_on_success = _as_bool(options_map.get("archive_on_success"), False)
+        archive_on_failure = _as_bool(options_map.get("archive_on_failure"), False)
 
         state.data["gmail_query"] = query
         state.data["max_messages"] = max_messages
+        state.data["gmail_success_label_name"] = success_label
+        state.data["gmail_needs_review_label_name"] = needs_review_label
+        state.data["gmail_error_label_name"] = error_label
+        state.data["gmail_min_confidence"] = min_confidence
+        state.data["gmail_archive_on_success"] = archive_on_success
+        state.data["gmail_archive_on_failure"] = archive_on_failure
 
         log.info(
             "config_valid",
             workflow=name,
             query=query,
             max_messages=max_messages,
+            gmail_success_label=success_label,
+            gmail_needs_review_label=needs_review_label,
+            gmail_error_label=error_label,
+            min_confidence=min_confidence,
+            archive_on_success=archive_on_success,
+            archive_on_failure=archive_on_failure,
         )
         return StepResult(ok=True, outputs={"max_messages": max_messages})
 
@@ -117,6 +183,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         decoded_plain_count = 0
         decoded_html_count = 0
         decoded_none_count = 0
+        action_items: list[ActionItem] = []
 
         intake_items: list[dict[str, Any]] = []
         for message in messages:
@@ -163,6 +230,17 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 }
                 for error in parsed.errors
             ]
+            error_count = len(parsed.errors)
+            parse_ok = error_count == 0
+
+            action_items.append(
+                ActionItem(
+                    message_id=message_id,
+                    parse_ok=parse_ok,
+                    error_count=error_count,
+                    confidence=parsed.confidence,
+                )
+            )
 
             intake_items.append(
                 {
@@ -183,6 +261,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                     "parse_errors": parse_errors,
                 }
             )
+
+        state.data["action_items"] = action_items
 
         triage_rows = [
             {
@@ -386,10 +466,182 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             },
         )
 
+    def apply_actions(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
+        raw_action_items = state.data.get("action_items")
+        action_items: list[ActionItem] = []
+        if isinstance(raw_action_items, list):
+            for item in raw_action_items:
+                if not isinstance(item, dict):
+                    continue
+                message_id = str(item.get("message_id") or "")
+                parse_ok = bool(item.get("parse_ok"))
+                try:
+                    confidence = float(item.get("confidence", 0.0))
+                except (TypeError, ValueError):
+                    confidence = 0.0
+                error_count_raw = item.get("error_count")
+                if not isinstance(error_count_raw, int):
+                    try:
+                        error_count_raw = int(error_count_raw)
+                    except (TypeError, ValueError):
+                        error_count_raw = 0
+                error_count = int(error_count_raw)
+
+                action_items.append(
+                    ActionItem(
+                        message_id=message_id,
+                        parse_ok=parse_ok,
+                        error_count=error_count,
+                        confidence=confidence,
+                    )
+                )
+
+        min_confidence = _as_float(state.data.get("gmail_min_confidence"), 0.6)
+        archive_on_success = _as_bool(state.data.get("gmail_archive_on_success"), False)
+        archive_on_failure = _as_bool(state.data.get("gmail_archive_on_failure"), False)
+        success_label_name = str(state.data.get("gmail_success_label_name") or "").strip()
+        needs_review_label_name = str(state.data.get("gmail_needs_review_label_name") or "").strip()
+        error_label_name = str(state.data.get("gmail_error_label_name") or "").strip()
+
+        if not success_label_name or not needs_review_label_name or not error_label_name:
+            return StepResult(
+                ok=False,
+                error="Invalid state: missing configured Gmail label names",
+            )
+
+        app_cfg = load_config()
+        settings = settings_from_env()
+        gmail_service = build_service(cfg=app_cfg, api="gmail", settings=settings)
+        adapter = GmailAdapter(service=gmail_service, logger=log, run_id=ctx.run_id)
+
+        success_label_id = adapter.ensure_label(success_label_name)
+        needs_review_label_id = adapter.ensure_label(needs_review_label_name)
+        error_label_id = adapter.ensure_label(error_label_name)
+
+        plan = build_action_plan(action_items, min_confidence=min_confidence)
+        summary = summarize_plan(plan)
+
+        log.info(
+            "action_plan_built",
+            workflow=name,
+            run_id=ctx.run_id,
+            success_count=summary.get("success_count", 0),
+            needs_review_count=summary.get("needs_review_count", 0),
+            min_confidence=min_confidence,
+            archive_on_success=archive_on_success,
+            archive_on_failure=archive_on_failure,
+            min_confidence_threshold=min_confidence,
+            error_label_id=error_label_id,
+        )
+
+        success_ids = plan.get("success", [])
+        needs_review_ids = plan.get("needs_review", [])
+
+        if success_ids:
+            remove = []
+            if archive_on_success:
+                remove.append("INBOX")
+            adapter.batch_modify(
+                message_ids=success_ids,
+                add_label_ids=[success_label_id],
+                remove_label_ids=remove,
+            )
+
+        if needs_review_ids:
+            remove = []
+            if archive_on_failure:
+                remove.append("INBOX")
+            adapter.batch_modify(
+                message_ids=needs_review_ids,
+                add_label_ids=[needs_review_label_id],
+                remove_label_ids=remove,
+            )
+
+        archived_success_count = len(success_ids) if archive_on_success else 0
+        archived_failure_count = len(needs_review_ids) if archive_on_failure else 0
+
+        actions_plan = {
+            "plan": plan,
+            "config": {
+                "min_confidence": min_confidence,
+                "archive_on_success": archive_on_success,
+                "archive_on_failure": archive_on_failure,
+                "success_label": success_label_name,
+                "needs_review_label": needs_review_label_name,
+                "error_label": error_label_name,
+            },
+            "totals": summary,
+        }
+        actions_applied = {
+            "actions_success_count": summary.get("success_count", 0),
+            "actions_needs_review_count": summary.get("needs_review_count", 0),
+            "archived_success_count": archived_success_count,
+            "archived_failure_count": archived_failure_count,
+            "archive_on_success": archive_on_success,
+            "archive_on_failure": archive_on_failure,
+        }
+
+        actions_plan_path = ctx.artifacts_dir / "actions_plan.json"
+        actions_applied_path = ctx.artifacts_dir / "actions_applied.json"
+        _write_json(actions_plan_path, actions_plan)
+        _write_json(actions_applied_path, actions_applied)
+
+        register_artifact(
+            ctx,
+            name="actions_plan_json",
+            path=actions_plan_path,
+            type="json",
+            metadata=actions_applied,
+        )
+        register_artifact(
+            ctx,
+            name="actions_applied_json",
+            path=actions_applied_path,
+            type="json",
+            metadata=actions_applied,
+        )
+
+        log.info(
+            "gmail_actions_applied",
+            workflow=name,
+            run_id=ctx.run_id,
+            actions_success_count=summary.get("success_count", 0),
+            actions_needs_review_count=summary.get("needs_review_count", 0),
+            archived_success_count=archived_success_count,
+            archived_failure_count=archived_failure_count,
+        )
+
+        log.info(
+            "apply_actions_done",
+            run_id=ctx.run_id,
+            workflow=name,
+            actions_success_count=summary.get("success_count", 0),
+            actions_needs_review_count=summary.get("needs_review_count", 0),
+            archived_success_count=archived_success_count,
+            archived_failure_count=archived_failure_count,
+            archive_on_success=archive_on_success,
+            archive_on_failure=archive_on_failure,
+            actions_plan_path=actions_plan_path.relative_to(ctx.run_dir).as_posix(),
+            actions_applied_path=actions_applied_path.relative_to(ctx.run_dir).as_posix(),
+        )
+
+        return StepResult(
+            ok=True,
+            outputs={
+                "actions_success_count": summary.get("success_count", 0),
+                "actions_needs_review_count": summary.get("needs_review_count", 0),
+                "archived_success_count": archived_success_count,
+                "archived_failure_count": archived_failure_count,
+                "actions_plan": actions_plan_path.relative_to(ctx.run_dir).as_posix(),
+                "actions_applied": actions_applied_path.relative_to(ctx.run_dir).as_posix(),
+            },
+        )
+
     steps = [
         Step(name="validate_config", fn=validate_config),
         Step(name="collect_intake", fn=collect_intake),
         Step(name="upsert_triage_sheet", fn=upsert_triage_sheet),
+        Step(name="apply_actions", fn=apply_actions),
     ]
     return Workflow(name=name, steps=steps)
 

@@ -47,7 +47,9 @@ Gmail uses OAuth even if Service Account is configured (Drive/Sheets can still u
 - Drive (OAuth user default): `https://www.googleapis.com/auth/drive.file`
 - Drive (Service Account for shared file access): `https://www.googleapis.com/auth/drive`
 - Sheets: `https://www.googleapis.com/auth/spreadsheets`
-- Gmail (dev test): `https://www.googleapis.com/auth/gmail.readonly`
+- Gmail: `https://www.googleapis.com/auth/gmail.modify`
+  - Gmail workflows that add/remove labels or archive messages require this scope.
+  - If a user only authorized `gmail.readonly` previously, they must re-run auth with `gmail.modify`.
 
 ---
 
@@ -57,7 +59,8 @@ Scopes are centralized in `gw_engine.clients.scopes_for_api(...)`. You don't nee
 
 Key design points:
 - **Drive/Sheets** can use either Service Account or OAuth (determined by config)
-- **Gmail** remains OAuth-only for now (until domain-wide delegation is added in a future iteration)
+- **Gmail** remains OAuth-only for now (until domain-wide delegation is added in a future iteration).
+  - Labeling/archiving actions require `gmail.modify`.
 - The factory automatically applies the correct scopes for each API + auth method
 
 **Distinction**: Auth is about **credentials** (who you are). The Client Factory is what **builds API clients consistently** with those credentials and the right configuration (scopes, timeouts, retries).

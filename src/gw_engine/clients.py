@@ -37,6 +37,7 @@ DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets"
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 
 ApiName = Literal["drive", "sheets", "gmail"]
 
@@ -116,8 +117,8 @@ def scopes_for_api(*, api: ApiName, use_service_account: bool) -> list[str]:
             [SHEETS_SCOPE, DRIVE_SCOPE] if use_service_account else [SHEETS_SCOPE, DRIVE_FILE_SCOPE]
         )
     if api == "gmail":
-        # In this project: Gmail uses OAuth user creds (dev). SA Gmail needs DWD (future).
-        return [GMAIL_READONLY_SCOPE]
+        # Gmail workflows may label/archive, so use modify scope.
+        return [GMAIL_MODIFY_SCOPE]
     raise ClientFactoryError(f"Unknown api: {api}")
 
 

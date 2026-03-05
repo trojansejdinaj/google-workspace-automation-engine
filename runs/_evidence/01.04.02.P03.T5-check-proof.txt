@@ -1,0 +1,53 @@
+RESULT: T5 - Gmail actions applied via classify+batchModify
+
+Config (redacted):
+{
+  "gmail_query": "newer_than:7d -in:chats -category:social",
+  "gmail": {
+    "labels": {
+      "success": "gw/processed",
+      "needs_review": "gw/needs-review",
+      "error": "gw/error"
+    }
+  },
+  "options": {
+    "min_confidence": 0.6,
+    "archive_on_success": false,
+    "archive_on_failure": false
+  }
+}
+
+apply_actions logs:
+{"event":"action_plan_built","workflow":"gmail_to_sheets_intake","success_count":8,"needs_review_count":2,"min_confidence":0.6,"archive_on_success":false,"archive_on_failure":false}
+{"event":"gmail_label_exists","name":"gw/processed","label_id":"Label_1"}
+{"event":"gmail_label_exists","name":"gw/needs-review","label_id":"Label_2"}
+{"event":"gmail_label_exists","name":"gw/error","label_id":"Label_3"}
+{"event":"gmail_batch_modify_ok","count":8,"addLabelIds":["Label_1"],"removeLabelIds":[]}
+{"event":"gmail_batch_modify_ok","count":2,"addLabelIds":["Label_2"],"removeLabelIds":[]}
+{"event":"gmail_actions_applied","actions_success_count":8,"actions_needs_review_count":2,"archived_success_count":0,"archived_failure_count":0}
+{"event":"apply_actions_done","run_id":"run_<REDACTED>","workflow":"gmail_to_sheets_intake","actions_success_count":8,"actions_needs_review_count":2,"archived_success_count":0,"archived_failure_count":0,"archive_on_success":false,"archive_on_failure":false,"actions_plan_path":"artifacts/actions_plan.json","actions_applied_path":"artifacts/actions_applied.json"}
+
+Artifacts:
+runs/<RUN_ID>/artifacts/actions_plan.json
+{
+  "plan": {
+    "success": ["msg_1", "..."],
+    "needs_review": ["msg_9", "..."]
+  },
+  "config": {
+    "min_confidence": 0.6,
+    "archive_on_success": false,
+    "archive_on_failure": false,
+    "success_label": "gw/processed",
+    "needs_review_label": "gw/needs-review",
+    "error_label": "gw/error"
+  }
+}
+
+runs/<RUN_ID>/artifacts/actions_applied.json
+{
+  "actions_success_count": 8,
+  "actions_needs_review_count": 2,
+  "archived_success_count": 0,
+  "archived_failure_count": 0
+}

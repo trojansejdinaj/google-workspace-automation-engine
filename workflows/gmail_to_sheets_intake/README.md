@@ -28,6 +28,18 @@ Supported in T2:
 - Parsed output artifact: `runs/<run_id>/artifacts/parsed_emails.jsonl` (PII-safe shape; excludes raw body text).
 - Extending rules: add/update a label list or regex extractor in `email_parser.py`, then route it through `parse_email(...)` and add/update fixture tests.
 
+### Actions (T5): labels + optional archive
+- Classification:
+  - `success` if `errors == 0` and `confidence >= min_confidence`
+  - `needs_review` otherwise
+- Labels used:
+  - `gmail.labels.success`
+  - `gmail.labels.needs_review`
+- Optional archive behavior:
+  - `archive_on_success` removes `INBOX` from success items.
+  - `archive_on_failure` removes `INBOX` from needs_review items.
+- Gmail scope requirement: `https://www.googleapis.com/auth/gmail.modify` (labels/archive actions).
+
 ## 2-minute demo (T1 scaffold)
 
 ```bash
@@ -72,7 +84,7 @@ uv run gw run gmail_to_sheets_intake --config workflows/gmail_to_sheets_intake/c
 - `runs/<run_id>/artifacts/triage_export.csv` exists.
 
 4) Evidence checklist:
-- Fill `runs/_evidence/01.04.02.P03.T4-check-proof.txt`.
+- Fill `runs/_evidence/01.04.02.P03.T5-check-proof.txt`.
 - Capture 1-2 screenshots to `docs/assets/gmail_to_sheets_intake/`.
 
 Before committing, run:
@@ -95,19 +107,8 @@ Standard engine outputs under `runs/<run_id>/`:
 - Permissions: share the target Sheet with the credential identity used by the workflow.
 - Gmail labels: confirm configured labels exist (or are creatable) and names match config exactly.
 
-## Evidence (DoD proof)
-Save proof file:
-`runs/_evidence/01.04.02.P03.T1-proof.txt`
-
-Include:
-1) config dump (sanitized as needed)
-2) 5–10 representative log lines
-3) output snippet from run artifacts/audit output
-
-## Proof / Evidence (T4)
-Capture and store:
-- `runs/<run_id>/artifacts/triage_export.csv` (or a short snippet from it)
-- `runs/_evidence/01.04.02.P03.T4-check-proof.txt` (RESULT, redacted config, logs, output snippet)
-- 1-2 screenshots in `docs/assets/gmail_to_sheets_intake/`:
-	- `portfolio-01.png` (triage tab after run)
-	- `portfolio-02.png` (artifacts view or opened `triage_export.csv` snippet)
+## Evidence (T5)
+Use `runs/_evidence/01.04.02.P03.T5-check-proof.txt` with:
+1) redacted config dump (`gmail_query`, `gmail.labels`, `options`)
+2) 5–10 `apply_actions` log lines (or equivalent step summary lines)
+3) output snippet from `artifacts/actions_plan.json` or `artifacts/actions_applied.json`

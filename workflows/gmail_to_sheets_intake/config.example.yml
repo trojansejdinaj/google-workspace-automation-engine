@@ -17,3 +17,6 @@ sheets:
 
 options:
   max_messages: 25
+  min_confidence: 0.6
+  archive_on_success: false
+  archive_on_failure: false
