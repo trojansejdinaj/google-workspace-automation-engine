@@ -40,6 +40,21 @@ Supported in T2:
   - `archive_on_failure` removes `INBOX` from needs_review items.
 - Gmail scope requirement: `https://www.googleapis.com/auth/gmail.modify` (labels/archive actions).
 
+## Needs-review alert (T7)
+
+- After `apply_actions`, the workflow can emit a needs-review alert when new needs-review items were created.
+- Controlled by `alerts.enabled` and `alerts.include_total_count` in config.
+- Alert step runs after routing/labeling (`apply_actions`), reads:
+  - `needs_review_new_count` from state (set by `apply_actions`)
+  - `sheets.sheet_id` + `sheets.tabs.triage_tab`
+  - `gmail.labels.needs_review` for optional total count query
+- If `needs_review_new_count == 0`, event `needs_review_alert_suppressed` is logged.
+- If enabled and new count > 0:
+  - writes `artifacts/needs_review_alert.json`
+  - registers `needs_review_alert_json`
+  - logs `needs_review_alert_emitted`
+- If `alerts.include_total_count: true`, total count uses capped `GmailAdapter.search_message_ids(query=f"label:<needs_review_label>")`.
+
 ## Attachments (T6)
 
 Optional attachment support is controlled by `gmail_to_sheets_intake` config:
@@ -155,3 +170,9 @@ Use `runs/_evidence/01.04.02.P03.T5-check-proof.txt` with:
 1) redacted config dump (`gmail_query`, `gmail.labels`, `options`)
 2) 5–10 `apply_actions` log lines (or equivalent step summary lines)
 3) output snippet from `artifacts/actions_plan.json` or `artifacts/actions_applied.json`
+
+## Evidence (T7)
+Use `runs/_evidence/01.04.02.P03.T7-check-proof.txt` with:
+1) alert output in logs (`needs_review_alert_emitted` or `needs_review_alert_suppressed`)
+2) `artifacts/needs_review_alert.json` or evidence that no artifact exists when suppressed
+3) triage sheet URL used in the alert payload

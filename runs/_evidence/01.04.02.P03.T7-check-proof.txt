@@ -1,0 +1,65 @@
+01.04.02.P03.T7 — Alerts: summary when needs-review exists
+
+Section: Checks (fmt/lint/test)
+Command: UV_CACHE_DIR=/tmp/uvcache make fmt
+Output:
+uv run ruff format .
+58 files left unchanged
+
+Command: UV_CACHE_DIR=/tmp/uvcache make lint
+Output:
+uv run ruff check .
+All checks passed!
+
+Command: UV_CACHE_DIR=/tmp/uvcache make test
+Output:
+uv run pytest
+........................................................................ [ 63%]
+.........................................                                [100%]
+113 passed, 2 deselected in 0.36s
+
+Section: Config snippet (sanitized)
+alerts:
+  enabled: true
+  include_total_count: true
+
+sheets:
+  sheet_id: TEST_SHEET_ID_123456
+  tabs:
+    triage_tab: triage
+
+gmail:
+  labels:
+    needs_review: gw/needs-review
+
+Section: Run A — Suppressed
+Command: UV_CACHE_DIR=/tmp/uvcache uv run python /tmp/gmail_alert_evidence_runs.py suppressed > /tmp/01_04_02_t7_run_suppressed.txt
+Log lines:
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "step_start", "run_id": "80b4cbdbc3ac46dcbfa5b33316d14f54", "step": "emit_alert_if_needs_review", "step_idx": 2, "start_ms": 1772702128890, "status": "RUNNING"}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "needs_review_alert_suppressed", "run_id": "80b4cbdbc3ac46dcbfa5b33316d14f54", "workflow": "gmail_to_sheets_intake", "new_needs_review_count": 0, "total_needs_review_count": null, "triage_sheet_url": "https://docs.google.com/spreadsheets/d/TEST_SHEET_ID_123456/edit#gid=triage"}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "step_end", "run_id": "80b4cbdbc3ac46dcbfa5b33316d14f54", "step": "emit_alert_if_needs_review", "step_idx": 2, "ok": true, "status": "OK", "duration_ms": 0, "end_ms": 1772702128890}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "run_end", "run_id": "80b4cbdbc3ac46dcbfa5b33316d14f54", "ok": true, "duration_ms": 1, "end_ms": 1772702128890}
+alert_artifact_exists: False
+
+Section: Run B — Emitted
+Command: UV_CACHE_DIR=/tmp/uvcache uv run python /tmp/gmail_alert_evidence_runs.py emitted > /tmp/01_04_02_t7_run_emitted.txt
+Log lines:
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "step_start", "run_id": "9f7b470705cb4ffda6141d5d3c1db484", "step": "emit_alert_if_needs_review", "step_idx": 2, "start_ms": 1772702128880, "status": "RUNNING"}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "needs_review_alert_emitted", "run_id": "9f7b470705cb4ffda6141d5d3c1db484", "workflow": "gmail_to_sheets_intake", "new_needs_review_count": 4, "total_needs_review_count": 3, "triage_sheet_url": "https://docs.google.com/spreadsheets/d/TEST_SHEET_ID_123456/edit#gid=triage", "alert_artifact": "artifacts/needs_review_alert.json"}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "step_end", "run_id": "9f7b470705cb4ffda6141d5d3c1db484", "step": "emit_alert_if_needs_review", "step_idx": 2, "ok": true, "status": "OK", "duration_ms": 0, "end_ms": 1772702128880}
+{"ts": "2026-03-05T09:15:28Z", "level": "INFO", "component": "engine", "event": "run_end", "run_id": "9f7b470705cb4ffda6141d5d3c1db484", "ok": true, "duration_ms": 1, "end_ms": 1772702128880}
+Alert artifact snippet (runs/9f7b470705cb4ffda6141d5d3c1db484/artifacts/needs_review_alert.json):
+{
+  "new_needs_review_count": 4,
+  "sheet_id": "TEST_SHEET_ID_123456",
+  "total_needs_review_count": 3,
+  "triage_sheet_url": "https://docs.google.com/spreadsheets/d/TEST_SHEET_ID_123456/edit#gid=triage",
+  "triage_tab": "triage",
+  "workflow": "gmail_to_sheets_intake"
+}
+
+Result: PASS
+ - Suppression is based on new_needs_review_count == 0.
+ - Alert payload and logs include counts + triage_sheet_url.
+ - alerts.enabled toggles behavior (set true in runs above; see emit path), and suppression emits no artifact.
+ - Artifact emitted only when new_needs_review_count > 0.

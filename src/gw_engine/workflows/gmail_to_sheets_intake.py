@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from gw_engine.alerts import emit_needs_review_alert
 from gw_engine.artifacts import register_artifact
 from gw_engine.attachments import (
     ValidationStatus,
@@ -79,6 +80,9 @@ def _as_bool(value: Any, default: bool) -> bool:
             return False
         return default
     return default
+
+
+NEEDS_REVIEW_ALERT_TOTAL_SEARCH_CAP = 500
 
 
 def _header_value(message: dict[str, Any], name: str) -> str:
@@ -863,6 +867,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
 
         archived_success_count = len(success_ids) if archive_on_success else 0
         archived_failure_count = len(needs_review_ids) if archive_on_failure else 0
+        needs_review_new_count = _as_int(summary.get("needs_review_count"), 0)
+        state.data["needs_review_new_count"] = needs_review_new_count
 
         actions_plan = {
             "plan": plan,
@@ -933,7 +939,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             ok=True,
             outputs={
                 "actions_success_count": summary.get("success_count", 0),
-                "actions_needs_review_count": summary.get("needs_review_count", 0),
+                "actions_needs_review_count": needs_review_new_count,
                 "archived_success_count": archived_success_count,
                 "archived_failure_count": archived_failure_count,
                 "actions_plan": actions_plan_path.relative_to(ctx.run_dir).as_posix(),
@@ -941,12 +947,89 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             },
         )
 
+    def emit_alert_if_needs_review(
+        ctx: RunContext, state: RunState, log: JsonlLogger
+    ) -> StepResult:
+        alerts_cfg = cfg.get("alerts")
+        alerts_enabled = (
+            _as_bool(alerts_cfg.get("enabled"), False) if isinstance(alerts_cfg, dict) else False
+        )
+        include_total_count = (
+            _as_bool(alerts_cfg.get("include_total_count"), False)
+            if isinstance(alerts_cfg, dict)
+            else False
+        )
+
+        if not alerts_enabled:
+            log.info(
+                "needs_review_alert_disabled",
+                run_id=ctx.run_id,
+                workflow=name,
+            )
+            return StepResult(
+                ok=True,
+                outputs={
+                    "needs_review_alert_emitted": False,
+                    "needs_review_new_count": _as_int(state.data.get("needs_review_new_count"), 0),
+                    "needs_review_alert_enabled": False,
+                },
+            )
+
+        sheets_cfg = cfg.get("sheets")
+        if not isinstance(sheets_cfg, dict):
+            return StepResult(ok=False, error="Invalid config: missing sheets section")
+
+        sheet_id = str(sheets_cfg.get("sheet_id") or "").strip()
+        if not sheet_id or sheet_id in {"DUMMY_SHEET_ID", "REPLACE_ME"}:
+            return StepResult(ok=False, error="Invalid config: missing sheets.sheet_id")
+
+        tabs = sheets_cfg.get("tabs") if isinstance(sheets_cfg.get("tabs"), dict) else {}
+        triage_tab = str(tabs.get("triage_tab") or "triage").strip()
+
+        needs_review_new_count = _as_int(state.data.get("needs_review_new_count"), 0)
+        total_count: int | None = None
+        if include_total_count and needs_review_new_count > 0:
+            needs_review_label_name = str(
+                state.data.get("gmail_needs_review_label_name") or ""
+            ).strip()
+            if not needs_review_label_name:
+                return StepResult(
+                    ok=False,
+                    error=(
+                        "Invalid state: missing gmail_needs_review_label_name for total "
+                        "needs-review count"
+                    ),
+                )
+
+            app_cfg = load_config()
+            settings = settings_from_env()
+            gmail_service = build_service(cfg=app_cfg, api="gmail", settings=settings)
+            adapter = GmailAdapter(service=gmail_service, logger=log, run_id=ctx.run_id)
+            total_count = len(
+                adapter.search_message_ids(
+                    query=f"label:{needs_review_label_name}",
+                    max_results=NEEDS_REVIEW_ALERT_TOTAL_SEARCH_CAP,
+                )
+            )
+
+        result = emit_needs_review_alert(
+            ctx,
+            log,
+            workflow=name,
+            sheet_id=sheet_id,
+            triage_tab=triage_tab,
+            new_count=needs_review_new_count,
+            total_count=total_count if include_total_count else None,
+        )
+        return StepResult(ok=True, outputs=result)
+
     steps = [
         Step(name="validate_config", fn=validate_config),
         Step(name="collect_intake", fn=collect_intake),
         Step(name="upsert_triage_sheet", fn=upsert_triage_sheet),
         Step(name="attachments", fn=process_attachments),
         Step(name="apply_actions", fn=apply_actions),
+        Step(name="emit_alert_if_needs_review", fn=emit_alert_if_needs_review),
     ]
     return Workflow(name=name, steps=steps)
 

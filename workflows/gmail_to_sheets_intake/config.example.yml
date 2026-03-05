@@ -21,6 +21,10 @@ options:
   archive_on_success: false
   archive_on_failure: false
 
+alerts:
+  enabled: false
+  include_total_count: false
+
 attachments:
   enabled: false
   max_size_bytes: 5242880
