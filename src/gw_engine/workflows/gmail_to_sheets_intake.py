@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import json
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -273,6 +275,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         decoded_html_count = 0
         decoded_none_count = 0
         action_items: list[ActionItem] = []
+        parse_error_map: dict[str, list[str]] = {}
 
         intake_items: list[dict[str, Any]] = []
         for message in messages:
@@ -319,6 +322,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 }
                 for error in parsed.errors
             ]
+            parse_error_map[message_id] = [str(error.code) for error in parsed.errors]
             error_count = len(parsed.errors)
             parse_ok = error_count == 0
 
@@ -352,6 +356,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             )
 
         state.data["action_items"] = action_items
+        state.data["action_parse_error_map"] = parse_error_map
 
         triage_rows = [
             {
@@ -516,6 +521,18 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             preserve_existing_status=True,
             run_id=ctx.run_id,
         )
+        triage_row_map: dict[str, int] = {}
+        if merged_table:
+            try:
+                message_col = merged_table[0].index("message_id")
+            except ValueError:
+                message_col = -1
+            if message_col >= 0:
+                for row_idx, row in enumerate(merged_table[1:], start=2):
+                    message_id = str(row[message_col] if message_col < len(row) else "").strip()
+                    if message_id:
+                        triage_row_map[message_id] = row_idx
+        state.data["triage_message_row_map"] = triage_row_map
 
         sheets_svc.spreadsheets().values().update(
             spreadsheetId=sheet_id,
@@ -776,12 +793,36 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
 
     def apply_actions(ctx: RunContext, state: RunState, log: JsonlLogger) -> StepResult:
         raw_action_items = state.data.get("action_items")
+        raw_parse_error_map = state.data.get("action_parse_error_map")
+        raw_triage_row_map = state.data.get("triage_message_row_map")
+
+        parse_error_map: dict[str, list[str]] = {}
+        if isinstance(raw_parse_error_map, dict):
+            for raw_message_id, raw_errors in raw_parse_error_map.items():
+                message_id = str(raw_message_id).strip()
+                if not message_id or not isinstance(raw_errors, list):
+                    continue
+                parse_error_map[message_id] = [
+                    str(item) for item in raw_errors if str(item).strip()
+                ]
+
+        sheet_row_map: dict[str, int] = {}
+        if isinstance(raw_triage_row_map, dict):
+            for raw_message_id, raw_row in raw_triage_row_map.items():
+                message_id = str(raw_message_id).strip()
+                if not message_id or not isinstance(raw_row, int):
+                    continue
+                sheet_row_map[message_id] = raw_row
+
+        raw_action_context: dict[str, tuple[bool, float, int]] = {}
         action_items: list[ActionItem] = []
         if isinstance(raw_action_items, list):
             for item in raw_action_items:
                 if not isinstance(item, dict):
                     continue
                 message_id = str(item.get("message_id") or "")
+                if message_id in raw_action_context:
+                    continue
                 parse_ok = bool(item.get("parse_ok"))
                 try:
                     confidence = float(item.get("confidence", 0.0))
@@ -794,6 +835,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                     except (TypeError, ValueError):
                         error_count_raw = 0
                 error_count = int(error_count_raw)
+                raw_action_context[message_id] = (parse_ok, confidence, error_count)
 
                 action_items.append(
                     ActionItem(
@@ -826,7 +868,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         needs_review_label_id = adapter.ensure_label(needs_review_label_name)
         error_label_id = adapter.ensure_label(error_label_name)
 
-        plan = build_action_plan(action_items, min_confidence=min_confidence)
+        plan_items = [item for item in action_items if item["message_id"]]
+        plan = build_action_plan(plan_items, min_confidence=min_confidence)
         summary = summarize_plan(plan)
 
         log.info(
@@ -842,28 +885,117 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             error_label_id=error_label_id,
         )
 
-        success_ids = plan.get("success", [])
-        needs_review_ids = plan.get("needs_review", [])
+        raw_success_ids = plan.get("success", [])
+        raw_needs_review_ids = plan.get("needs_review", [])
+        success_ids = [
+            mid.strip() for mid in raw_success_ids if isinstance(mid, str) and mid.strip()
+        ]
+        needs_review_ids = [
+            mid.strip() for mid in raw_needs_review_ids if isinstance(mid, str) and mid.strip()
+        ]
+        success_lookup = set(success_ids)
+        needs_review_lookup = set(needs_review_ids)
+
+        action_error_reasons: dict[str, str] = {}
 
         if success_ids:
             remove = []
             if archive_on_success:
                 remove.append("INBOX")
-            adapter.batch_modify(
-                message_ids=success_ids,
-                add_label_ids=[success_label_id],
-                remove_label_ids=remove,
-            )
+            try:
+                adapter.batch_modify(
+                    message_ids=success_ids,
+                    add_label_ids=[success_label_id],
+                    remove_label_ids=remove,
+                )
+            except Exception as exc:
+                for message_id in success_ids:
+                    action_error_reasons[message_id] = f"action_failed:{exc}"
 
         if needs_review_ids:
             remove = []
             if archive_on_failure:
                 remove.append("INBOX")
-            adapter.batch_modify(
-                message_ids=needs_review_ids,
-                add_label_ids=[needs_review_label_id],
-                remove_label_ids=remove,
+            try:
+                adapter.batch_modify(
+                    message_ids=needs_review_ids,
+                    add_label_ids=[needs_review_label_id],
+                    remove_label_ids=remove,
+                )
+            except Exception as exc:
+                for message_id in needs_review_ids:
+                    action_error_reasons[message_id] = f"action_failed:{exc}"
+
+        triage_audit_path = ctx.artifacts_dir / "triage_audit.jsonl"
+        now = datetime.now(UTC).isoformat()
+        audit_rows: list[dict[str, Any]] = []
+        for message_id, context in raw_action_context.items():
+            parse_ok, confidence, error_count = context
+
+            if message_id and message_id in action_error_reasons:
+                outcome = "error"
+                reason = action_error_reasons[message_id]
+                gmail_actions: list[str] = []
+            elif not message_id:
+                outcome = "skipped"
+                reason = "missing_message_id"
+                gmail_actions = []
+            elif message_id in success_lookup:
+                outcome = "processed"
+                reason = None
+                gmail_actions = [f"label:{success_label_name}"]
+                if archive_on_success:
+                    gmail_actions.append("archive_inbox")
+            elif message_id in needs_review_lookup:
+                outcome = "needs_review"
+                if parse_error_map.get(message_id):
+                    reason = f"needs_review:{','.join(parse_error_map[message_id])}"
+                elif parse_ok:
+                    reason = f"confidence_below_min:{confidence}<{min_confidence}"
+                else:
+                    reason = f"parse_errors:{error_count}"
+                gmail_actions = [f"label:{needs_review_label_name}"]
+                if archive_on_failure:
+                    gmail_actions.append("archive_inbox")
+            else:
+                outcome = "skipped"
+                reason = "not_in_action_plan"
+                gmail_actions = []
+
+            audit_rows.append(
+                {
+                    "run_id": ctx.run_id,
+                    "message_id": message_id,
+                    "outcome": outcome,
+                    "reason": reason,
+                    "sheet_row_id": sheet_row_map.get(message_id),
+                    "gmail_actions": gmail_actions,
+                    "timestamp": now,
+                }
             )
+
+        _write_jsonl(triage_audit_path, audit_rows)
+        outcome_counts = Counter(row["outcome"] for row in audit_rows)
+        register_artifact(
+            ctx,
+            name="triage_audit_jsonl",
+            path=triage_audit_path,
+            type="jsonl",
+            metadata={
+                "count": len(audit_rows),
+                "processed_count": outcome_counts.get("processed", 0),
+                "needs_review_count": outcome_counts.get("needs_review", 0),
+                "skipped_count": outcome_counts.get("skipped", 0),
+                "error_count": outcome_counts.get("error", 0),
+            },
+        )
+        log.info(
+            "triage_audit_written",
+            run_id=ctx.run_id,
+            path=triage_audit_path.relative_to(ctx.run_dir).as_posix(),
+            message_count=len(audit_rows),
+            outcome_counts=dict(outcome_counts),
+        )
 
         archived_success_count = len(success_ids) if archive_on_success else 0
         archived_failure_count = len(needs_review_ids) if archive_on_failure else 0
@@ -889,6 +1021,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
             "archived_failure_count": archived_failure_count,
             "archive_on_success": archive_on_success,
             "archive_on_failure": archive_on_failure,
+            "triage_audit": triage_audit_path.relative_to(ctx.run_dir).as_posix(),
+            "audit_rows": len(audit_rows),
         }
 
         actions_plan_path = ctx.artifacts_dir / "actions_plan.json"
@@ -942,6 +1076,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                 "actions_needs_review_count": needs_review_new_count,
                 "archived_success_count": archived_success_count,
                 "archived_failure_count": archived_failure_count,
+                "triage_audit": triage_audit_path.relative_to(ctx.run_dir).as_posix(),
+                "audit_rows": len(audit_rows),
                 "actions_plan": actions_plan_path.relative_to(ctx.run_dir).as_posix(),
                 "actions_applied": actions_applied_path.relative_to(ctx.run_dir).as_posix(),
             },

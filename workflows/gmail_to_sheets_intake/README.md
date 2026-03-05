@@ -98,52 +98,89 @@ Artifact index entries added by this step:
 Attachment summary logs:
 - `gmail_attachments_summary` event includes `total`, `routed`, `quarantined`, `errors`.
 
-## 2-minute demo (T1 scaffold)
+## 2-minute demo
+
+From repo root:
 
 ```bash
 cd workflows/gmail_to_sheets_intake
 cp -n config.example.yml config.local.yml
 ```
 
-Edit `config.local.yml` (local only):
-- set `sheets.sheet_id`
-- set `gmail.gmail_query`
-- set Gmail label names for success/failure handling
+Edit `config.local.yml` with your real values:
+- `gmail.gmail_query`
+- `sheets.sheet_id`
+- `gmail.labels.success`
+- `gmail.labels.needs_review`
+- `gmail.labels.error`
 
 Run:
-
-```bash
-bash ./demo.sh
-```
-
-T1 provides scaffold only. The demo command is in place and will run end-to-end once workflow implementation is added in later tasks.
-
-## Run + Verify (T4)
-1) Create local config from example:
-
-```bash
-cd workflows/gmail_to_sheets_intake
-cp -n config.example.yml config.local.yml
-```
-
-Edit `config.local.yml` and set a redacted-safe value in docs/proof (do not commit real IDs):
-- `sheets.sheet_id: <SHEET_ID_REDACTED>`
-
-2) Run the workflow (repo CLI entrypoint):
 
 ```bash
 uv run gw run gmail_to_sheets_intake --config workflows/gmail_to_sheets_intake/config.local.yml
 ```
 
-3) Verification checklist:
-- `triage` tab has rows keyed by `message_id`.
-- `gmail_link` opens the matching Gmail message.
-- `status` column exists and is preserved on rerun.
-- `runs/<run_id>/artifacts/triage_export.csv` exists.
+After the run, collect:
 
-4) Evidence checklist:
-- Fill `runs/_evidence/01.04.02.P03.T5-check-proof.txt`.
-- Capture 1-2 screenshots to `docs/assets/gmail_to_sheets_intake/`.
+```bash
+uv run gw export <run_id> --format json
+uv run gw export <run_id> --format csv
+```
+
+## Expected outputs
+
+- `runs/<run_id>/artifacts/triage_export.csv`
+  - Rows are upserted by `message_id` into the configured triage tab.
+  - Expected columns include at least: `message_id`, `gmail_link`, `status`, `last_run_id`, `updated_at`.
+  - Verify that new/updated rows have `status` and a non-empty `gmail_link`.
+- `runs/<run_id>/artifacts/triage_audit.jsonl` (new in this task)
+  - One row per message processed by `apply_actions` with required columns:
+    - `run_id`
+    - `message_id`
+    - `outcome` (`processed` | `needs_review` | `skipped` | `error`)
+    - `reason`
+    - `sheet_row_id`
+    - `gmail_actions` (e.g. `label:gw/processed`, `label:gw/needs-review`, `archive_inbox`)
+    - `timestamp`
+- `runs/<run_id>/artifacts/actions_plan.json` and `runs/<run_id>/artifacts/actions_applied.json`
+  - Confirms `processed` and `needs_review` counts.
+- `runs/<run_id>/audit.json` and `runs/<run_id>/audit.csv`
+  - Engine step-level audit export from `gw export`.
+  - Includes `step_name` and step-level status for every workflow step.
+- `runs/<run_id>/artifacts/needs_review_alert.json` (created when alert fires)
+- `runs/<run_id>/artifacts/triage_audit.jsonl` action fields and logs
+  - Labels/actions to verify:
+    - `needs_review` rows should include `label:<needs_review_label>` and optional `archive_inbox` when `archive_on_failure: true`.
+    - `processed` rows should include `label:<success_label>` and optional `archive_inbox` when `archive_on_success: true`.
+- `logs.jsonl` / console output
+  - `gmail_actions_applied` and `apply_actions_done` confirm actions by bucket.
+
+## Troubleshooting
+
+- Auth/env not ready
+  - Confirm Google credentials are available and valid for both Gmail and Sheets.
+- Sheets permission denied / wrong sheet
+  - Share the Sheet with the service account/user used by the workflow.
+  - Verify `sheets.sheet_id` is valid and writable.
+- Labels not found
+  - Ensure `gmail.labels.success`, `gmail.labels.needs_review`, and `gmail.labels.error` match existing labels.
+  - The workflow will auto-create labels if the account has permission.
+- Query returns no rows
+  - Use a broader `gmail.gmail_query` temporarily (`in:inbox`, `newer_than:1d`) and check `gmail_intake_summary`.
+- Archive behavior feels wrong
+  - Verify `archive_on_success` / `archive_on_failure` in `options` match desired behavior.
+
+## Portfolio screenshots
+
+Place 1–2 screenshots in:
+
+`docs/assets/gmail_to_sheets_intake/`
+
+Recommended files:
+1) `01-terminal-run-success.png`
+2) `02-sheet-rows-created.png`
+3) `03-gmail-label-or-archive.png`
+4) `04-audit-snippet.png`
 
 Before committing, run:
 
@@ -152,18 +189,6 @@ make fmt
 make lint
 make test
 ```
-
-## Expected outputs
-Standard engine outputs under `runs/<run_id>/`:
-- `logs.jsonl`
-- `audit.json` / `audit.csv` (if export is available for the run)
-- `artifacts/`
-- `errors/`
-
-## Troubleshooting
-- Auth/env: ensure Google auth environment variables are configured for your local setup.
-- Permissions: share the target Sheet with the credential identity used by the workflow.
-- Gmail labels: confirm configured labels exist (or are creatable) and names match config exactly.
 
 ## Evidence (T5)
 Use `runs/_evidence/01.04.02.P03.T5-check-proof.txt` with:
@@ -176,3 +201,10 @@ Use `runs/_evidence/01.04.02.P03.T7-check-proof.txt` with:
 1) alert output in logs (`needs_review_alert_emitted` or `needs_review_alert_suppressed`)
 2) `artifacts/needs_review_alert.json` or evidence that no artifact exists when suppressed
 3) triage sheet URL used in the alert payload
+
+## Evidence (T8)
+Use `runs/_evidence/01.04.02.P03.T8-proof-pack.txt` with:
+1) sanitized config dump (query, labels, options)
+2) copied demo commands above
+3) 5–10 `triage_audit_written` / `apply_actions` / step summary log lines
+4) output snippet from `artifacts/triage_audit.jsonl` showing `message_id` and `outcome`

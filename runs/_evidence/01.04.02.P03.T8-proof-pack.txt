@@ -1,0 +1,43 @@
+01.04.02.P03.T8 — Proof pack: 2-minute demo + screenshot + audit output
+
+CONFIG (sanitized)
+gmail:
+  gmail_query: "newer_than:7d -in:chats -category:social"
+  labels:
+    success: gw/processed
+    needs_review: gw/needs-review
+    error: gw/error
+sheets:
+  sheet_id: <SHEET_ID_REDACTED>
+  tabs:
+    triage_tab: triage
+options:
+  max_messages: 25
+  min_confidence: 0.6
+  archive_on_success: false
+  archive_on_failure: false
+attachments:
+  enabled: false
+alerts:
+  enabled: false
+  include_total_count: false
+
+DEMO COMMANDS
+- cd workflows/gmail_to_sheets_intake
+- cp -n config.example.yml config.local.yml
+- uv run gw run gmail_to_sheets_intake --config workflows/gmail_to_sheets_intake/config.local.yml
+- uv run gw export <run_id> --format json
+- uv run gw export <run_id> --format csv
+
+LOG SNIPPET (sample)
+{"event":"gmail_intake_summary","run_id":"run_<REDACTED>","ids_found":3,"fetched_count":3,"decoded_plain_count":1,"decoded_html_count":2,"decoded_none_count":0}
+{"event":"triage_upsert_done","sheet_id":"<SHEET_ID_REDACTED>","tab":"triage","rows_written":14}
+{"event":"action_plan_built","success_count":2,"needs_review_count":1,"archive_on_success":false,"archive_on_failure":false}
+{"event":"gmail_actions_applied","actions_success_count":2,"actions_needs_review_count":1,"archived_success_count":0,"archived_failure_count":0}
+{"event":"triage_audit_written","path":"artifacts/triage_audit.jsonl","message_count":3,"outcome_counts":{"processed":2,"needs_review":1}}
+{"event":"apply_actions_done","actions_success_count":2,"actions_needs_review_count":1,"archived_success_count":0,"archived_failure_count":0}
+
+OUTPUT SNIPPET (sample)
+{"run_id":"run_<REDACTED>","message_id":"msg-123","outcome":"processed","reason":null,"sheet_row_id":12,"gmail_actions":["label:gw/processed"],"timestamp":"2026-03-05T10:00:00.000000+00:00"}
+{"run_id":"run_<REDACTED>","message_id":"msg-456","outcome":"needs_review","reason":"needs_review:missing_field:invoice_or_order_id","sheet_row_id":13,"gmail_actions":["label:gw/needs-review"],"timestamp":"2026-03-05T10:00:00.000000+00:00"}
+{"run_id":"run_<REDACTED>","message_id":"msg-789","outcome":"processed","reason":null,"sheet_row_id":14,"gmail_actions":["label:gw/processed"],"timestamp":"2026-03-05T10:00:00.000000+00:00"}
