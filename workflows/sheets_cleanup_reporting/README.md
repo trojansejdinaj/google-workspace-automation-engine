@@ -15,7 +15,7 @@ This workflow:
 3) produces a cleaned preview + validation annotations
 4) writes per-run artifacts under `runs/<run_id>/artifacts/`
 
-## 2-minute demo (T8)
+## 2-minute live run
 
 ```bash
 cd workflows/sheets_cleanup_reporting
@@ -56,7 +56,7 @@ Capture these exactly:
 
 Placeholders are checked in under `docs/assets/sheets_cleanup_reporting/` and should be replaced with actual screenshots.
 
-## Schema & Validation (T2)
+## Schema & Validation
 - Schema lives in `config.yml` under `rules.schema`.
 - Invalid rows are preserved and annotated with reasons, not dropped.
 - Transform failures (T3) are recorded separately from schema validation failures.
@@ -64,7 +64,7 @@ Placeholders are checked in under `docs/assets/sheets_cleanup_reporting/` and sh
 - Validation output: `runs/<run_id>/artifacts/validation_report.json`.
 - Run locally: `./workflows/sheets_cleanup_reporting/demo.sh` and `make test`.
 
-## T3 — Cleanup transforms + dedupe + metrics
+## Cleanup transforms + dedupe + metrics
 This workflow applies cleanup transforms before strict schema validation:
 
 Order:
@@ -91,10 +91,9 @@ Order:
 - Run artifacts: `runs/<run_id>/artifacts/report.csv` and `runs/<run_id>/artifacts/needs_review.csv` (optional `runs/<run_id>/artifacts/cleanup_report.json`).
 
 ### Screenshots
-- [Report tab](docs/assets/sheets_cleanup_reporting/report-tab.png)
-- [Needs-review tab](docs/assets/sheets_cleanup_reporting/needs-review-tab.png)
+Portfolio assets are tracked under `docs/assets/sheets_cleanup_reporting/`.
 
-### Evidence (DoD proof)
+### Historical evidence (DoD proof)
 Save a proof file:
 `runs/_evidence/01.04.02.P02.T3-proof.txt`
 

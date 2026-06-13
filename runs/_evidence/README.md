@@ -20,9 +20,21 @@ Do not commit per-run artifacts:
 Those belong in `runs/` (ignored by git).
 
 ## Naming convention
-Use task-coded filenames:
+Legacy evidence currently uses task-coded flat filenames:
 - `01.04.02.P01.T1-quality-gates.txt`
 - `01.04.02.P01.T1-quality-gates.png`
+
+Current and future Planner task evidence uses one directory per completed Task:
+- `runs/_evidence/<task-code>-<task-title-slug>/proof.md`
+- raw terminal output and machine-readable snippets go under `raw/`
+
+Example:
+- `runs/_evidence/06.03.01.P01.T01-stabilize-repo-quality-gates/proof.md`
+- `runs/_evidence/06.03.01.P01.T01-stabilize-repo-quality-gates/raw/quality-gates.txt`
+
+Calendar rows do not each receive repository proof files. Create one proof file for the completed Task that the calendar rows roll up into.
+
+Existing legacy flat evidence remains valid and will be migrated separately. Do not rename historical task codes during the T01 stabilization pass.
 
 ## KPI naming (for proof files)
 Use a single canonical set for evidence proofs:

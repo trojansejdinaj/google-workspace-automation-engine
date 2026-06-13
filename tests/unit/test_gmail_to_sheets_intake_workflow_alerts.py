@@ -45,7 +45,7 @@ def test_emit_alert_step_emits_when_new_needs_review_count_exists(
     search_calls: list[tuple[str, int]] = []
 
     class FakeGmailAdapter:
-        def __init__(self, *_, **__) -> None: ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def search_message_ids(self, query: str, max_results: int = 50) -> list[str]:
             search_calls.append((query, max_results))
@@ -134,7 +134,7 @@ def test_alert_step_disabled_skips_alerting(
     called = False
 
     class FailingGmailAdapter:
-        def __init__(self, *_, **__) -> None:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             nonlocal called
             called = True
 

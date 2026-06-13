@@ -39,7 +39,7 @@ def test_apply_actions_writes_audit_rows_with_outcomes(
     }
 
     class FakeGmailAdapter:
-        def __init__(self, *_, **__) -> None:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             self.labels: dict[str, str] = {}
             self.calls: list[tuple[list[str], list[str], list[str]]] = []
 
@@ -59,7 +59,7 @@ def test_apply_actions_writes_audit_rows_with_outcomes(
 
     adapter = FakeGmailAdapter()
 
-    def fake_build_service(*_, **__) -> Any:
+    def fake_build_service(*args: Any, **kwargs: Any) -> Any:
         return object()
 
     def fake_load_config() -> Any:
@@ -68,7 +68,11 @@ def test_apply_actions_writes_audit_rows_with_outcomes(
     def fake_settings_from_env() -> Any:
         return object()
 
-    monkeypatch.setattr(gmail_to_sheets_intake, "GmailAdapter", lambda *_, **__: adapter)
+    monkeypatch.setattr(
+        gmail_to_sheets_intake,
+        "GmailAdapter",
+        lambda *args, **kwargs: adapter,
+    )
     monkeypatch.setattr(gmail_to_sheets_intake, "build_service", fake_build_service)
     monkeypatch.setattr(gmail_to_sheets_intake, "load_config", fake_load_config)
     monkeypatch.setattr(gmail_to_sheets_intake, "settings_from_env", fake_settings_from_env)
@@ -141,3 +145,132 @@ def test_apply_actions_writes_audit_rows_with_outcomes(
     index_payload = json.loads(ctx.artifacts_index_path.read_text(encoding="utf-8"))
     assert any(row["name"] == "triage_audit_jsonl" for row in index_payload)
     assert any(event["event"] == "triage_audit_written" for event in _as_jsonl_lines(ctx.logs_path))
+
+
+def test_apply_actions_coerces_error_count_with_workflow_int_helper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg: dict[str, Any] = {
+        "gmail": {
+            "gmail_query": "in:inbox",
+            "labels": {
+                "success": "gw/processed",
+                "needs_review": "gw/needs-review",
+                "error": "gw/error",
+            },
+        },
+        "sheets": {
+            "sheet_id": "DUMMY",
+            "tabs": {"triage_tab": "triage"},
+            "defaults": {"status": "NEW"},
+        },
+        "options": {"min_confidence": 0.6},
+    }
+
+    class FakeGmailAdapter:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            self.calls: list[tuple[list[str], list[str], list[str]]] = []
+
+        def ensure_label(self, name: str) -> str:
+            return f"label-{name}"
+
+        def batch_modify(
+            self,
+            *,
+            message_ids: list[str],
+            add_label_ids: list[str],
+            remove_label_ids: list[str],
+        ) -> None:
+            self.calls.append((list(message_ids), list(add_label_ids), list(remove_label_ids)))
+
+    adapter = FakeGmailAdapter()
+
+    def fake_gmail_adapter(*args: Any, **kwargs: Any) -> FakeGmailAdapter:
+        return adapter
+
+    def fake_build_service(*args: Any, **kwargs: Any) -> Any:
+        return object()
+
+    monkeypatch.setattr(gmail_to_sheets_intake, "GmailAdapter", fake_gmail_adapter)
+    monkeypatch.setattr(gmail_to_sheets_intake, "build_service", fake_build_service)
+    monkeypatch.setattr(gmail_to_sheets_intake, "load_config", lambda: object())
+    monkeypatch.setattr(gmail_to_sheets_intake, "settings_from_env", lambda: object())
+
+    workflow_factory = gmail_to_sheets_intake.get_workflow(cfg)
+    apply_actions_step = next(
+        step for step in workflow_factory.steps if step.name == "apply_actions"
+    )
+
+    def seed_state(_ctx: RunContext, state: RunState, _log: JsonlLogger) -> StepResult:
+        state.data["action_items"] = [
+            {
+                "message_id": "msg-bool-true",
+                "parse_ok": False,
+                "error_count": True,
+                "confidence": 0.99,
+            },
+            {
+                "message_id": "msg-bool-false",
+                "parse_ok": False,
+                "error_count": False,
+                "confidence": 0.99,
+            },
+            {
+                "message_id": "msg-int",
+                "parse_ok": False,
+                "error_count": 3,
+                "confidence": 0.99,
+            },
+            {
+                "message_id": "msg-string",
+                "parse_ok": False,
+                "error_count": "4",
+                "confidence": 0.99,
+            },
+            {
+                "message_id": "msg-none",
+                "parse_ok": False,
+                "error_count": None,
+                "confidence": 0.99,
+            },
+        ]
+        state.data["gmail_min_confidence"] = 0.6
+        state.data["gmail_success_label_name"] = "gw/processed"
+        state.data["gmail_needs_review_label_name"] = "gw/needs-review"
+        state.data["gmail_error_label_name"] = "gw/error"
+        state.data["gmail_archive_on_success"] = False
+        state.data["gmail_archive_on_failure"] = False
+        return StepResult(ok=True)
+
+    ctx = RunContext.create(tmp_path / "runs")
+    log = JsonlLogger(path=ctx.logs_path, component="engine")
+
+    result = run_workflow(
+        workflow=Workflow(
+            name="gmail_to_sheets_intake_error_count_audit",
+            steps=[
+                Step(name="seed_state", fn=seed_state),
+                apply_actions_step,
+            ],
+        ),
+        ctx=ctx,
+        log=log,
+    )
+
+    assert result.ok is True
+    assert adapter.calls == [
+        (
+            ["msg-bool-true", "msg-bool-false", "msg-int", "msg-string", "msg-none"],
+            ["label-gw/needs-review"],
+            [],
+        )
+    ]
+
+    artifact_rows = _as_jsonl_lines(ctx.artifacts_dir / "triage_audit.jsonl")
+    rows = {row["message_id"]: row for row in artifact_rows}
+
+    assert rows["msg-bool-true"]["reason"] == "parse_errors:0"
+    assert rows["msg-bool-false"]["reason"] == "parse_errors:0"
+    assert rows["msg-int"]["reason"] == "parse_errors:3"
+    assert rows["msg-string"]["reason"] == "parse_errors:4"
+    assert rows["msg-none"]["reason"] == "parse_errors:0"

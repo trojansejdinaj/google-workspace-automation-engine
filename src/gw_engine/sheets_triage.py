@@ -111,7 +111,8 @@ def upsert_triage_table(
 
     def to_cell_map(row: dict[str, Any]) -> dict[str, str]:
         # parsed fields live under row["parsed"] sometimes
-        parsed = row.get("parsed") if isinstance(row.get("parsed"), dict) else {}
+        raw_parsed = row.get("parsed")
+        parsed: dict[str, Any] = raw_parsed if isinstance(raw_parsed, dict) else {}
         message_id = str(row.get("message_id") or "").strip()
 
         # normalize amount

@@ -1,0 +1,32 @@
+06.03.01.P01.T01 — Stabilize Repo & Quality Gates
+
+Curated command/result record. This is not a raw terminal transcript.
+
+Commands and results:
+
+- uv sync
+  Result: PASS
+
+- uv run ruff format --check .
+  Result: PASS
+  Detail: 60 files formatted/already formatted.
+
+- uv run ruff check .
+  Result: PASS
+  Detail: no Ruff lint issues.
+
+- uv run mypy . --no-incremental
+  Result: PASS
+  Detail: no issues found in 60 source files.
+
+- uv run pytest
+  Result: PASS
+  Detail: 121 passed, 2 deselected.
+
+- git diff --check
+  Result: PASS
+
+Production review:
+
+- Result: APPROVE
+- Detail: retry status extraction and workflow error-count coercion follow-up changes reviewed and approved.

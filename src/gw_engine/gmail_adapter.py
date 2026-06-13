@@ -127,12 +127,14 @@ class GmailAdapter:
     def get_label_id_by_name(self, name: str) -> str | None:
         """Return matching label id for label name using case-insensitive comparison."""
         for label in self.list_labels():
+            label_name = label.get("name")
+            label_id = label.get("id")
             if (
-                isinstance(label.get("name"), str)
-                and label["name"].lower() == name.lower()
-                and isinstance(label.get("id"), str)
+                isinstance(label_name, str)
+                and label_name.lower() == name.lower()
+                and isinstance(label_id, str)
             ):
-                return label["id"]
+                return label_id
         return None
 
     def ensure_label(self, name: str) -> str:

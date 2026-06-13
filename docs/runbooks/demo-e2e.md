@@ -9,7 +9,7 @@ The demo itself does not call external APIs, but normal workflows use one of:
 - Service account credentials (common for Drive/Sheets automation)
 
 Auth setup and details are documented in:
-- `docs/architecture/05-auth.md`
+- [Google auth](../architecture/05-auth.md)
 
 ## 2) Run the demo
 
@@ -30,7 +30,7 @@ uv run gw run sheets_cleanup_reporting --config workflows/sheets_cleanup_reporti
 ```
 
 Workflow runbooks:
-- [docs/runbooks/sheets-cleanup-reporting.md](docs/runbooks/sheets-cleanup-reporting.md)
+- [Sheets cleanup and reporting](sheets-cleanup-reporting.md)
 
 Expected outputs:
 - `runs/<run_id>/logs.jsonl`

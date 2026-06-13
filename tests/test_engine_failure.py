@@ -47,6 +47,7 @@ def test_api_retry_exhausted_marks_step_failed_and_creates_error_artifact(tmp_pa
     # Verify workflow result
     assert result.ok is False
     assert result.failed_step == "failing_step"
+    assert result.error is not None
     assert "Rate limit exceeded" in result.error
 
     # Verify execution stopped at first failure

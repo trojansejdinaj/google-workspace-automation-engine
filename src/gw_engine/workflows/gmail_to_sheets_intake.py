@@ -485,12 +485,12 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         if not sheet_id or sheet_id in {"DUMMY_SHEET_ID", "REPLACE_ME"}:
             return StepResult(ok=False, error="Invalid config: missing sheets.sheet_id")
 
-        tabs = sheets_cfg.get("tabs") if isinstance(sheets_cfg.get("tabs"), dict) else {}
+        raw_tabs = sheets_cfg.get("tabs")
+        tabs: dict[str, Any] = raw_tabs if isinstance(raw_tabs, dict) else {}
         triage_tab = str(tabs.get("triage_tab") or "triage").strip()
 
-        defaults = (
-            sheets_cfg.get("defaults") if isinstance(sheets_cfg.get("defaults"), dict) else {}
-        )
+        raw_defaults = sheets_cfg.get("defaults")
+        defaults: dict[str, Any] = raw_defaults if isinstance(raw_defaults, dict) else {}
         default_status = str(defaults.get("status") or "NEW").strip() or "NEW"
 
         triage_rows = state.data.get("triage_rows")
@@ -828,13 +828,7 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
                     confidence = float(item.get("confidence", 0.0))
                 except (TypeError, ValueError):
                     confidence = 0.0
-                error_count_raw = item.get("error_count")
-                if not isinstance(error_count_raw, int):
-                    try:
-                        error_count_raw = int(error_count_raw)
-                    except (TypeError, ValueError):
-                        error_count_raw = 0
-                error_count = int(error_count_raw)
+                error_count = _as_int(item.get("error_count"), 0)
                 raw_action_context[message_id] = (parse_ok, confidence, error_count)
 
                 action_items.append(
@@ -1119,7 +1113,8 @@ def get_workflow(cfg: dict[str, Any]) -> Workflow:
         if not sheet_id or sheet_id in {"DUMMY_SHEET_ID", "REPLACE_ME"}:
             return StepResult(ok=False, error="Invalid config: missing sheets.sheet_id")
 
-        tabs = sheets_cfg.get("tabs") if isinstance(sheets_cfg.get("tabs"), dict) else {}
+        raw_tabs = sheets_cfg.get("tabs")
+        tabs: dict[str, Any] = raw_tabs if isinstance(raw_tabs, dict) else {}
         triage_tab = str(tabs.get("triage_tab") or "triage").strip()
 
         needs_review_new_count = _as_int(state.data.get("needs_review_new_count"), 0)

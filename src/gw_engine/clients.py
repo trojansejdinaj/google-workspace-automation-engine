@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast, overload
 
 import httplib2
 from google.auth.transport.requests import Request
@@ -349,6 +349,30 @@ class Services:
     gmail: GmailService
 
 
+@overload
+def build_service(
+    *, cfg: AppConfig, api: Literal["drive"], settings: ClientSettings
+) -> DriveService: ...
+
+
+@overload
+def build_service(
+    *, cfg: AppConfig, api: Literal["sheets"], settings: ClientSettings
+) -> SheetsService: ...
+
+
+@overload
+def build_service(
+    *, cfg: AppConfig, api: Literal["gmail"], settings: ClientSettings
+) -> GmailService: ...
+
+
+@overload
+def build_service(
+    *, cfg: AppConfig, api: ApiName, settings: ClientSettings
+) -> DriveService | SheetsService | GmailService: ...
+
+
 def build_service(
     *, cfg: AppConfig, api: ApiName, settings: ClientSettings
 ) -> DriveService | SheetsService | GmailService:
@@ -395,7 +419,7 @@ def build_service(
 def build_clients(*, cfg: AppConfig, settings: ClientSettings | None = None) -> Services:
     s = settings or settings_from_env()
     return Services(
-        drive=cast(DriveService, build_service(cfg=cfg, api="drive", settings=s)),
-        sheets=cast(SheetsService, build_service(cfg=cfg, api="sheets", settings=s)),
-        gmail=cast(GmailService, build_service(cfg=cfg, api="gmail", settings=s)),
+        drive=build_service(cfg=cfg, api="drive", settings=s),
+        sheets=build_service(cfg=cfg, api="sheets", settings=s),
+        gmail=build_service(cfg=cfg, api="gmail", settings=s),
     )

@@ -14,7 +14,9 @@ _FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "gmail"
 
 def _load_fixture(filename: str) -> dict[str, Any]:
     fixture = _FIXTURE_DIR / filename
-    return json.loads(fixture.read_text(encoding="utf-8"))
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    assert isinstance(payload, dict)
+    return payload
 
 
 def test_list_message_attachments_with_no_attachments(tmp_path: Path) -> None:

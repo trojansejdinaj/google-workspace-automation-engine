@@ -48,13 +48,13 @@ def compute_backoff_s(attempt: int, cfg: RetryConfig) -> float:
         Delay in seconds before next retry
     """
     # Exponential backoff: base * 2^(attempt-1)
-    delay = cfg.base_delay_s * (2 ** (attempt - 1))
+    delay: float = cfg.base_delay_s * (2 ** (attempt - 1))
 
     # Clamp to max
     delay = min(delay, cfg.max_delay_s)
 
     # Add random jitter
-    jitter = random.uniform(0, cfg.jitter_s)
+    jitter: float = random.uniform(0, cfg.jitter_s)
 
     return delay + jitter
 
@@ -74,16 +74,20 @@ def _extract_status_code(exc: Exception) -> int | None:
         Status code if found, None otherwise
     """
     # Try direct status_code attribute
-    if hasattr(exc, "status_code"):
-        return exc.status_code  # type: ignore[return-value]
+    status_code = getattr(exc, "status_code", None)
+    if type(status_code) is int:
+        return status_code
 
     # Try resp.status (googleapiclient HttpError pattern)
-    if hasattr(exc, "resp") and hasattr(exc.resp, "status"):
-        return exc.resp.status  # type: ignore[return-value, attr-defined]
+    resp = getattr(exc, "resp", None)
+    resp_status = getattr(resp, "status", None)
+    if type(resp_status) is int:
+        return resp_status
 
     # Try direct status attribute
-    if hasattr(exc, "status"):
-        return exc.status  # type: ignore[return-value]
+    status = getattr(exc, "status", None)
+    if type(status) is int:
+        return status
 
     return None
 

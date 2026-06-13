@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from gw_engine.sheets_transforms import (
+    CaseMode,
+    KeepMode,
     apply_transforms,
     dedupe_rows,
     normalize_date_to_iso,
@@ -24,7 +28,7 @@ def test_normalize_string_trim_case_and_space_collapse(
     raw: object,
     trim: bool,
     collapse_spaces: bool,
-    case: str,
+    case: CaseMode,
     expected: str,
 ) -> None:
     out = normalize_string(raw, trim=trim, collapse_spaces=collapse_spaces, case=case)
@@ -165,11 +169,11 @@ def test_apply_transforms_table_driven_with_derived_metrics() -> None:
     ],
 )
 def test_dedupe_rows_strategy_keep_first_or_last(
-    keep: str,
-    expected_rows: list[dict[str, object]],
+    keep: KeepMode,
+    expected_rows: list[dict[str, Any]],
     expected_removed: int,
 ) -> None:
-    rows = [
+    rows: list[dict[str, Any]] = [
         {"id": "A-1", "updated_at": "2026-02-18T10:00:00", "amount": 10},
         {"id": "A-1", "updated_at": "2026-02-19T10:00:00", "amount": 20},
         {"id": "A-2", "updated_at": "2026-02-18T11:00:00", "amount": 30},
@@ -182,7 +186,7 @@ def test_dedupe_rows_strategy_keep_first_or_last(
 
 
 def test_dedupe_rows_missing_or_blank_key_is_treated_as_unique() -> None:
-    rows = [
+    rows: list[dict[str, Any]] = [
         {"id": "", "amount": 10},
         {"id": "", "amount": 20},
         {"amount": 30},

@@ -39,7 +39,7 @@ class FakeRequest:
         self.call_count = 0
         self.result = {"success": True}
 
-    def execute(self, **kwargs: Any) -> dict[str, Any]:
+    def execute(self, http: Any | None = None, num_retries: int = 0) -> dict[str, Any]:
         self.call_count += 1
         if self.call_count <= self.fail_count:
             raise FakeHttpError(self.status_code)
@@ -253,7 +253,7 @@ def test_retry_with_403_rate_limit_reason(monkeypatch: pytest.MonkeyPatch) -> No
         def __init__(self) -> None:
             self.call_count = 0
 
-        def execute(self, **kwargs: Any) -> dict[str, Any]:
+        def execute(self, http: Any | None = None, num_retries: int = 0) -> dict[str, Any]:
             self.call_count += 1
             if self.call_count <= 2:
                 error = FakeHttpError(403, reason="rateLimitExceeded")

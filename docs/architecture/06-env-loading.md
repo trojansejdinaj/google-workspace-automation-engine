@@ -19,18 +19,21 @@ source ~/.bashrc
 
 From repo root:
 
-cd ~/projects/google-workspace-automation-engine
+```bash
+cd <repo-root>
 echo 'dotenv' > .envrc
 direnv allow
-
+```
 
 Now, any time you cd into this repo, .env loads automatically.
 
 ### Verify
-cd ~
-cd ~/projects/google-workspace-automation-engine
-echo "$GOOGLE_CLIENT_ID"
 
+```bash
+cd ~
+cd <repo-root>
+echo "$GOOGLE_CLIENT_ID"
+```
 
 If it prints a value, you’re good.
 
@@ -38,9 +41,9 @@ If it prints a value, you’re good.
 
 direnv requires explicit approval: direnv allow
 
-.env should be gitignored (secrets stay local)
+`.env` should be gitignored (secrets stay local).
 
-.envrc can be committed because it contains only dotenv
+`.envrc` can be committed if it contains only `dotenv`.
 
 ---
 
@@ -62,12 +65,11 @@ GW_HTTP_INITIAL_BACKOFF_S=1.0
 ```
 
 ## Alternative: manual (works but annoying)
+
+```bash
 set -a
 source .env
 set +a
-
+```
 
 ---
-
-If you want, I can also produce a tiny `docs/00-index.md` that links these docs in order, but the above is the minimum “clean set” to reflect what you actually built in T4.
-::contentReference[oaicite:7]{index=7}

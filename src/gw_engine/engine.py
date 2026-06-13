@@ -133,7 +133,7 @@ def run_workflow(
             error = result.error or "step returned ok=false"
             if not error_logged:
                 # Write error artifact for non-exception failures
-                error_payload: dict[str, Any] = {
+                step_error_payload: dict[str, Any] = {
                     "run_id": ctx.run_id,
                     "workflow": workflow.name,
                     "step": step.name,
@@ -146,7 +146,7 @@ def run_workflow(
                     run_dir=ctx.run_dir,
                     workflow=workflow.name,
                     step=step.name,
-                    payload=error_payload,
+                    payload=step_error_payload,
                 )
 
                 log.error(

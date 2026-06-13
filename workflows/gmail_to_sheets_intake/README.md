@@ -8,7 +8,7 @@ Inbox triage is noisy and easy to drift:
 - manual copy/paste is error-prone and hard to rerun safely
 
 ## Solution
-This workflow will:
+This workflow:
 1) search Gmail using a configured query
 2) parse selected email fields into a consistent row shape
 3) upsert rows into Google Sheets for durable tracking
@@ -16,7 +16,7 @@ This workflow will:
 5) write per-run artifacts under `runs/<run_id>/` for auditability
 
 ## Gmail adapter: search + fetch + body decode
-Supported in T2:
+Supported behavior:
 - Search messages with configured Gmail query inputs.
 - Fetch message details needed for downstream parsing.
 - Decode message body content from Gmail payload encoding.
@@ -28,7 +28,7 @@ Supported in T2:
 - Parsed output artifact: `runs/<run_id>/artifacts/parsed_emails.jsonl` (PII-safe shape; excludes raw body text).
 - Extending rules: add/update a label list or regex extractor in `email_parser.py`, then route it through `parse_email(...)` and add/update fixture tests.
 
-### Actions (T5): labels + optional archive
+### Actions: labels + optional archive
 - Classification:
   - `success` if `errors == 0` and `confidence >= min_confidence`
   - `needs_review` otherwise
@@ -40,7 +40,7 @@ Supported in T2:
   - `archive_on_failure` removes `INBOX` from needs_review items.
 - Gmail scope requirement: `https://www.googleapis.com/auth/gmail.modify` (labels/archive actions).
 
-## Needs-review alert (T7)
+## Needs-review alert
 
 - After `apply_actions`, the workflow can emit a needs-review alert when new needs-review items were created.
 - Controlled by `alerts.enabled` and `alerts.include_total_count` in config.
@@ -55,7 +55,7 @@ Supported in T2:
   - logs `needs_review_alert_emitted`
 - If `alerts.include_total_count: true`, total count uses capped `GmailAdapter.search_message_ids(query=f"label:<needs_review_label>")`.
 
-## Attachments (T6)
+## Attachments
 
 Optional attachment support is controlled by `gmail_to_sheets_intake` config:
 
@@ -98,7 +98,7 @@ Artifact index entries added by this step:
 Attachment summary logs:
 - `gmail_attachments_summary` event includes `total`, `routed`, `quarantined`, `errors`.
 
-## 2-minute demo
+## 2-minute live run
 
 From repo root:
 
@@ -190,19 +190,19 @@ make lint
 make test
 ```
 
-## Evidence (T5)
+## Historical evidence (T5)
 Use `runs/_evidence/01.04.02.P03.T5-check-proof.txt` with:
 1) redacted config dump (`gmail_query`, `gmail.labels`, `options`)
 2) 5–10 `apply_actions` log lines (or equivalent step summary lines)
 3) output snippet from `artifacts/actions_plan.json` or `artifacts/actions_applied.json`
 
-## Evidence (T7)
+## Historical evidence (T7)
 Use `runs/_evidence/01.04.02.P03.T7-check-proof.txt` with:
 1) alert output in logs (`needs_review_alert_emitted` or `needs_review_alert_suppressed`)
 2) `artifacts/needs_review_alert.json` or evidence that no artifact exists when suppressed
 3) triage sheet URL used in the alert payload
 
-## Evidence (T8)
+## Historical evidence (T8)
 Use `runs/_evidence/01.04.02.P03.T8-proof-pack.txt` with:
 1) sanitized config dump (query, labels, options)
 2) copied demo commands above

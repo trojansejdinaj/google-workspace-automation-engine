@@ -6,6 +6,7 @@ import pytest
 
 from gw_engine.sheets_validation import (
     ColumnSpec,
+    SchemaType,
     build_schema_from_cfg,
     mark_rows_with_reasons,
     validate_rows,
@@ -22,7 +23,7 @@ from gw_engine.sheets_validation import (
     ],
 )
 def test_validate_rows_coerces_supported_types(
-    col_type: str,
+    col_type: SchemaType,
     raw_value: object,
     expected: object,
 ) -> None:
@@ -46,7 +47,7 @@ def test_validate_rows_coerces_supported_types(
     ],
 )
 def test_validate_rows_reports_stable_type_error_reason_keys(
-    col_type: str,
+    col_type: SchemaType,
     raw_value: object,
 ) -> None:
     schema = [ColumnSpec(name="v", type=col_type, required=True, allow_blank=False)]

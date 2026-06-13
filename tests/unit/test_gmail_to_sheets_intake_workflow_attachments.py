@@ -50,7 +50,7 @@ def test_workflow_attachments_routes_valid_and_quarantines_invalid(
     }
 
     class FakeGmailAdapter:
-        def __init__(self, *_, **__) -> None: ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def list_message_attachments(self, message_id: str) -> list[AttachmentMeta]:
             assert message_id == "msg-attachments"
@@ -81,7 +81,7 @@ def test_workflow_attachments_routes_valid_and_quarantines_invalid(
                 return b"exe-1"
             raise AssertionError(f"unexpected attachment_id={attachment_id}")
 
-    def fake_build_service(*_, **__) -> Any:
+    def fake_build_service(*args: Any, **kwargs: Any) -> Any:
         return object()
 
     def fake_load_config() -> Any:

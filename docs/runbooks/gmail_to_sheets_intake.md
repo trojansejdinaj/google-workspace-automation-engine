@@ -1,22 +1,23 @@
 # Gmail to Sheets Intake Runbook
 
-Purpose: how to run [workflows/gmail_to_sheets_intake](workflows/gmail_to_sheets_intake) for T1 scaffold validation and capture evidence.
+Purpose: how to run [gmail_to_sheets_intake](../../workflows/gmail_to_sheets_intake/README.md), inspect outputs, and capture safe local evidence.
 
 ## 1) Purpose + when to run
 
 Use this runbook when you need to:
-- validate local scaffold setup for `gmail_to_sheets_intake`
-- confirm config wiring and demo command behavior
-- capture proof for P03.T1
+- run Gmail search/fetch/parsing into a Sheets triage tab
+- apply configured Gmail labels and optional archive actions
+- verify artifacts, logs, and audit output
+- capture redacted proof for historical evidence
 
-T1 is scaffold-only, so full Gmail→Sheets behavior is implemented in later tasks.
+The workflow is implemented for live Google API execution when OAuth credentials, Sheets access, and Gmail permissions are configured. Fixture-backed tests cover parsing, attachments, alerts, and action behavior without calling live Google APIs.
 
 ## 2) Prereqs
 
-- Auth/env setup: see [docs/architecture/05-auth.md](docs/architecture/05-auth.md).
+- Auth/env setup: see [Google auth](../architecture/05-auth.md) and [environment loading](../architecture/06-env-loading.md).
 - Sheet permissions: the target Sheet must be shared with the credential identity used locally.
 - Label existence: confirm configured Gmail labels exist (or can be created) and names match config exactly.
-- Local config: copy [workflows/gmail_to_sheets_intake/config.example.yml](workflows/gmail_to_sheets_intake/config.example.yml) to [workflows/gmail_to_sheets_intake/config.local.yml](workflows/gmail_to_sheets_intake/config.local.yml) and keep local values out of git.
+- Local config: copy [config.example.yml](../../workflows/gmail_to_sheets_intake/config.example.yml) to `workflows/gmail_to_sheets_intake/config.local.yml` and keep local values out of git.
 
 ## 3) Steps
 
@@ -41,7 +42,8 @@ bash ./demo.sh
 - Demo command exits with status 0.
 - A new run directory is created at `runs/<run_id>/`.
 - Logs are present at `runs/<run_id>/logs.jsonl`.
-- Depending on export availability, `audit.json` / `audit.csv` may also appear under `runs/<run_id>/`.
+- Artifacts may include `triage_export.csv`, `triage_audit.jsonl`, `actions_plan.json`, `actions_applied.json`, attachment manifests, and alert JSON depending on config.
+- `audit.json` / `audit.csv` may also appear under `runs/<run_id>/` after `uv run gw export <run_id>`.
 
 ## 5) Common failures + fixes
 
@@ -53,8 +55,8 @@ bash ./demo.sh
 
 ## 6) Evidence (P03.T1)
 
-Save proof at:
-- [runs/_evidence/01.04.02.P03.T1-proof.txt](runs/_evidence/01.04.02.P03.T1-proof.txt)
+Historical scaffold proof remains at:
+- [P03.T1 proof](../../runs/_evidence/01.04.02.P03.T1-proof.txt)
 
 Include:
 - redacted config dump (`config.local.yml`, no secrets)
