@@ -1,0 +1,77 @@
+# Block 06 final task check
+
+2026-06-23T13:25:16+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+5b8ee96
+?? runs/_evidence/06.03.01.P01.T03/proof.md
+?? runs/_evidence/06.03.01.P01.T03/raw/block-06-final-task-check.txt
+5b8ee96 docs: update gmail workflow runbook evidence [06.03.01.P01.T03]
+e57f15e docs: capture gmail workflow screenshots [06.03.01.P01.T03]
+c6e14a5 docs: validate gmail parsed triage output [06.03.01.P01.T03]
+b6a0f65 fix: prove gmail intake demo with live auth [06.03.01.P01.T03]
+873cdd5 docs: prove gmail workflow demo setup [06.03.01.P01.T03]
+6b6483e prove Sheets cleanup reporting workflow [06.03.01.P01.T02]
+eb2f5c4 fix: stabilize repository quality gates [06.03.01.P01.T01]
+202cc23 feat(proof): demo + screenshots + audit proof pack (P03.T8)
+
+## Required proof files
+OK: runs/_evidence/06.03.01.P01.T03/proof.md
+OK: runs/_evidence/06.03.01.P01.T03/block-01-gmail-workflow-demo-setup.md
+OK: runs/_evidence/06.03.01.P01.T03/block-02-run-gmail-intake-demo.md
+OK: runs/_evidence/06.03.01.P01.T03/block-03-validate-gmail-parsed-data-and-triage.md
+OK: runs/_evidence/06.03.01.P01.T03/block-04-capture-gmail-workflow-screenshots.md
+OK: runs/_evidence/06.03.01.P01.T03/block-05-update-gmail-runbook-and-evidence.md
+OK: docs/runbooks/gmail_to_sheets_intake.md
+
+## Screenshots
+runs/_evidence/06.03.01.P01.T03/screenshots/01-terminal-validation-pass.png
+runs/_evidence/06.03.01.P01.T03/screenshots/02-sheets-triage-row-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/03-gmail-test-message-label-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/04-run-artifacts-folder.png
+
+## Final live run artifact files
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/actions_applied.json
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/actions_plan.json
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/gmail_intake_items.json
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/gmail_intake_summary.json
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/index.json
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/parsed_emails.jsonl
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/triage_audit.jsonl
+runs/2c522287aa004b389d8fb49daa2ba164/artifacts/triage_export.csv
+runs/2c522287aa004b389d8fb49daa2ba164/audit.csv
+runs/2c522287aa004b389d8fb49daa2ba164/audit.json
+runs/2c522287aa004b389d8fb49daa2ba164/context.json
+runs/2c522287aa004b389d8fb49daa2ba164/logs.jsonl
+runs/2c522287aa004b389d8fb49daa2ba164/run.json
+runs/2c522287aa004b389d8fb49daa2ba164/steps.json
+
+## Validation PASS marker
+52:VALIDATION_RESULT=PASS
+
+## Runbook live proof markers
+66:## Live proof run: cloud google acc Gmail to Sheets
+76:The Gmail workflow applies labels and may optionally archive messages, so Gmail OAuth must use `https://www.googleapis.com/auth/gmail.modify`.
+82:Create a Google Sheet in the cloud google acc and add a tab named exactly `triage`.
+88:`subject:"GW Intake Test Lead" newer_than:1d`
+103:Subject: `GW Intake Test Lead`
+144:- invalid_grant: regenerate the cloud google acc OAuth refresh token.
+145:- invalid_scope: confirm OAuth includes gmail.modify, spreadsheets, and drive.file.
+146:- Unable to parse range: triage!A1:Z: create or rename the Sheet tab to exactly triage.
+147:- ids_found: 0: send the controlled test email and use the narrow subject query.
+148:- Labels not applied: confirm Gmail OAuth uses gmail.modify, not gmail.readonly.
+
+## Secret hygiene
+
+## git diff --check
+
+## ruff check
+All checks passed!
+
+## ruff format check
+61 files already formatted
+
+## pytest
+........................................................................ [ 59%]
+..................................................                       [100%]

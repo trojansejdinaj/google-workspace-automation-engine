@@ -1,0 +1,20 @@
+# Block 02 Run Gmail Intake Demo - live attempt
+
+2026-06-23T07:28:39+02:00
+
+## Git
+branch=task/06.03.01.P01.T03-gmail-workflow-demo-setup
+head=873cdd5
+
+## Demo command
+cd workflows/gmail_to_sheets_intake && bash ./demo.sh
+
+## Result
+Using config: workflows/gmail_to_sheets_intake/config.local.yml
+ok=false
+failed_step=collect_intake
+run_id=0c82662aa6d242e49ceaf4b75006a3c5
+error=invalid_grant: Bad Request
+
+## Interpretation
+Live Gmail path is blocked by invalid OAuth refresh token / grant. Proceeding with fixture-backed demo path for T03.

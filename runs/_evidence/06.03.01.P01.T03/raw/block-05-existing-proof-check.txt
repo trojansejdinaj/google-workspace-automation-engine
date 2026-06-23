@@ -1,0 +1,49 @@
+# Block 05 existing runbook/evidence proof
+
+2026-06-23T13:05:25+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+e57f15e
+?? runs/_evidence/06.03.01.P01.T03/raw/block-05-existing-proof-check.txt
+
+## Runbook exists
+OK: runbook exists
+
+## Block 05 proof file exists
+MISSING: block 05 proof file
+
+## Runbook markers
+8:- run Gmail search/fetch/parsing into a Sheets triage tab
+45:- Artifacts may include `triage_export.csv`, `triage_audit.jsonl`, `actions_plan.json`, `actions_applied.json`, attachment manifests, and alert JSON depending on config.
+
+## T03 evidence files
+runs/_evidence/06.03.01.P01.T03/block-01-gmail-workflow-demo-setup.md
+runs/_evidence/06.03.01.P01.T03/block-02-run-gmail-intake-demo.md
+runs/_evidence/06.03.01.P01.T03/block-03-validate-gmail-parsed-data-and-triage.md
+runs/_evidence/06.03.01.P01.T03/block-04-capture-gmail-workflow-screenshots.md
+runs/_evidence/06.03.01.P01.T03/raw/block-01-inspection.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-01-quality-gates.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-01-targeted-tests.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-demo-run.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-gmail-oauth-cutover.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-live-failure-inspection.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-quality-gates.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-demo-retry.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-demo-run.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-artifact-inspection.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-demo-retry.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-demo-run.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-run-id.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-run-id.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-02-real-success-artifact-inspection.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-03-parse-triage-validation.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-03-quality-gates.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-04-quality-gates.txt
+runs/_evidence/06.03.01.P01.T03/raw/block-05-existing-proof-check.txt
+runs/_evidence/06.03.01.P01.T03/screenshots/01-terminal-validation-pass.png
+runs/_evidence/06.03.01.P01.T03/screenshots/02-sheets-triage-row-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/03-gmail-test-message-label-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/04-run-artifacts-folder.png
+
+## Secret hygiene

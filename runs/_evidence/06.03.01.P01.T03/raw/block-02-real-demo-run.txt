@@ -1,0 +1,27 @@
+# Block 02 Run Gmail Intake Demo - real cloud google acc run
+
+2026-06-23T11:39:46+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+873cdd5
+ M src/gw_engine/auth.py
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-demo-run.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-gmail-oauth-cutover.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-live-failure-inspection.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-demo-run.txt
+
+## Config safety
+.gitignore:61:**/config.local.yml	workflows/gmail_to_sheets_intake/config.local.yml
+
+## Demo command
+bash workflows/gmail_to_sheets_intake/demo.sh
+
+## Demo output
+Using config: workflows/gmail_to_sheets_intake/config.local.yml
+{
+  "error": "<HttpError 400 when requesting https://sheets.googleapis.com/v4/spreadsheets/<SHEET_ID_REDACTED>/values/triage%21A1%3AZ?alt=json returned \"Unable to parse range: triage!A1:Z\". Details: \"Unable to parse range: triage!A1:Z\">",
+  "failed_step": "upsert_triage_sheet",
+  "ok": false,
+  "run_id": "6c0a607a7e31414d951217083bd5b0cf"
+}

@@ -1,0 +1,23 @@
+# Block 04 quality gates
+
+2026-06-23T12:58:46+02:00
+
+## Screenshot files
+runs/_evidence/06.03.01.P01.T03/screenshots/01-terminal-validation-pass.png
+runs/_evidence/06.03.01.P01.T03/screenshots/02-sheets-triage-row-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/03-gmail-test-message-label-redacted.png
+runs/_evidence/06.03.01.P01.T03/screenshots/04-run-artifacts-folder.png
+
+## Secret hygiene for text evidence
+
+## git diff --check
+
+## ruff check
+All checks passed!
+
+## ruff format check
+61 files already formatted
+
+## pytest
+........................................................................ [ 59%]
+..................................................                       [100%]

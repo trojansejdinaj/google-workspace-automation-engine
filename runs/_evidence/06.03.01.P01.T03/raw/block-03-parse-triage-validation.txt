@@ -1,0 +1,54 @@
+# Block 03 Validate Gmail Parsed Data and Triage
+
+2026-06-23T12:39:03+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+b6a0f65
+?? runs/_evidence/06.03.01.P01.T03/raw/block-03-parse-triage-validation.txt
+
+## Run ID
+2c522287aa004b389d8fb49daa2ba164
+
+## Validation script output
+OK: run status is OK
+OK: workflow name is gmail_to_sheets_intake
+OK: all workflow steps are OK
+OK: Gmail search found 1 message
+OK: Gmail fetch returned 1 message
+OK: one plain-text body decoded
+OK: parsed_emails.jsonl has 1 row
+OK: parsed subject matches controlled test
+OK: parser confidence is 1.0
+OK: parser errors are empty
+OK: name parsed correctly
+OK: company parsed correctly
+OK: invoice/order ID parsed correctly
+OK: amount parsed correctly
+OK: email field is present
+OK: phone field is present
+OK: triage_export.csv has 1 data row
+OK: triage message_id matches parsed message
+OK: triage subject matches
+OK: triage name matches
+OK: triage company matches
+OK: triage invoice/order ID matches
+OK: triage confidence is 1.0
+OK: triage status is NEW
+OK: triage last_run_id matches final run
+OK: triage gmail_link is present
+OK: triage_audit.jsonl has 1 audit row
+OK: audit message_id matches parsed message
+OK: audit outcome is processed
+OK: audit includes gw/processed Gmail action
+OK: audit sheet_row_id is 2
+OK: actions_plan success_count is 1
+OK: actions_plan needs_review_count is 0
+OK: actions_plan includes message_id in success bucket
+OK: actions_applied success count is 1
+OK: actions_applied needs_review count is 0
+OK: actions_applied audit_rows is 1
+
+VALIDATION_RESULT=PASS
+RUN_ID=2c522287aa004b389d8fb49daa2ba164
+MESSAGE_ID=19ef405b92688b4b
