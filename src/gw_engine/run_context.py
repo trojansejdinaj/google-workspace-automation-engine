@@ -30,9 +30,11 @@ class RunContext:
 
         artifacts_dir = run_dir / "artifacts"
         artifacts_index_path = artifacts_dir / "index.json"
+        errors_dir = run_dir / "errors"
 
         run_dir.mkdir(parents=True, exist_ok=True)
         artifacts_dir.mkdir(parents=True, exist_ok=True)
+        errors_dir.mkdir(parents=True, exist_ok=True)
 
         return RunContext(
             run_id=run_id,
