@@ -1,0 +1,529 @@
+# Block 01 Gmail Workflow Demo Setup - raw inspection
+
+2026-06-23T06:39:33+02:00
+
+## Git
+?? runs/_evidence/06.03.01.P01.T03/
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+6b6483e
+
+## Key Gmail workflow paths
+total 40
+drwxr-xr-x 4 trojan trojan 4096 Mar  4 17:34 .
+drwxr-xr-x 5 trojan trojan 4096 Feb  1 11:49 ..
+-rw-r--r-- 1 trojan trojan 8341 Jun 13 15:10 README.md
+drwxr-xr-x 2 trojan trojan 4096 Feb  1 11:49 artifacts
+-rw-r--r-- 1 trojan trojan  715 Mar  5 10:08 config.example.yml
+-rw-r--r-- 1 trojan trojan  363 Mar  4 17:34 config.local.yml
+-rwxr-xr-x 1 trojan trojan  644 Mar  5 09:17 demo.sh
+drwxr-xr-x 2 trojan trojan 4096 Feb  1 11:49 evidence
+total 24
+drwxr-xr-x 2 trojan trojan 4096 Jun 23 06:22 .
+drwxr-xr-x 5 trojan trojan 4096 Jun 13 15:10 ..
+-rw-r--r-- 1 trojan trojan 2035 Jun 13 15:10 demo-e2e.md
+-rw-r--r-- 1 trojan trojan 2776 Jun 13 15:10 gmail_to_sheets_intake.md
+-rw-r--r-- 1 trojan trojan 4241 Jun 23 06:22 sheets-cleanup-reporting.md
+total 12
+drwxr-xr-x 2 trojan trojan 4096 Mar  5 10:30 .
+drwxr-xr-x 4 trojan trojan 4096 Mar  4 17:24 ..
+-rw-r--r-- 1 trojan trojan    0 Mar  5 10:30 01-terminal-run-success.png
+-rw-r--r-- 1 trojan trojan    0 Mar  5 10:30 02-sheet-rows-created.png
+-rw-r--r-- 1 trojan trojan    0 Mar  5 10:30 03-gmail-label-or-archive.png
+-rw-r--r-- 1 trojan trojan    0 Mar  5 10:30 04-audit-snippet.png
+-rw-r--r-- 1 trojan trojan 1331 Mar  5 10:30 README.md
+-rw-r--r-- 1 trojan trojan    0 Mar  4 17:25 portfolio-01.png
+-rw-r--r-- 1 trojan trojan    0 Mar  4 17:25 portfolio-02.png
+total 16
+drwxr-xr-x 2 trojan trojan 4096 Mar  5 09:43 .
+drwxr-xr-x 4 trojan trojan 4096 Feb 24 15:43 ..
+-rw-r--r-- 1 trojan trojan 1412 Mar  5 09:43 msg_nested_multipart_attachments.json
+-rw-r--r-- 1 trojan trojan  438 Mar  5 09:43 msg_zero_attachments.json
+total 16
+drwxr-xr-x  2 trojan trojan 4096 Feb 24 10:09 .
+drwxr-xr-x 17 trojan trojan 4096 Jun 22 11:00 ..
+-rw-r--r--  1 trojan trojan 4285 Feb 24 10:09 dump_gmail_fixtures.py
+
+## Workflow README
+# gmail_to_sheets_intake
+
+## Problem
+Inbox triage is noisy and easy to drift:
+- important emails are mixed with low-signal traffic
+- key details are captured inconsistently (or not at all)
+- reviewers lack a single queue for follow-up
+- manual copy/paste is error-prone and hard to rerun safely
+
+## Solution
+This workflow:
+1) search Gmail using a configured query
+2) parse selected email fields into a consistent row shape
+3) upsert rows into Google Sheets for durable tracking
+4) apply success/failure labels in Gmail for triage feedback
+5) write per-run artifacts under `runs/<run_id>/` for auditability
+
+## Gmail adapter: search + fetch + body decode
+Supported behavior:
+- Search messages with configured Gmail query inputs.
+- Fetch message details needed for downstream parsing.
+- Decode message body content from Gmail payload encoding.
+
+## Parsing + Structured Extraction
+- Parser code: `src/gw_engine/parsing/email_parser.py`.
+- Attempted fields: `name`, `company`, `email`, `phone`, `amount`, `invoice_or_order_id` (label-first, then fallbacks).
+- Confidence/errors: confidence is a normalized score in `[0,1]`; errors are structured with codes such as `missing_field`, `ambiguous_match`, and `invalid_format`.
+- Parsed output artifact: `runs/<run_id>/artifacts/parsed_emails.jsonl` (PII-safe shape; excludes raw body text).
+- Extending rules: add/update a label list or regex extractor in `email_parser.py`, then route it through `parse_email(...)` and add/update fixture tests.
+
+### Actions: labels + optional archive
+- Classification:
+  - `success` if `errors == 0` and `confidence >= min_confidence`
+  - `needs_review` otherwise
+- Labels used:
+  - `gmail.labels.success`
+  - `gmail.labels.needs_review`
+- Optional archive behavior:
+  - `archive_on_success` removes `INBOX` from success items.
+  - `archive_on_failure` removes `INBOX` from needs_review items.
+- Gmail scope requirement: `https://www.googleapis.com/auth/gmail.modify` (labels/archive actions).
+
+## Needs-review alert
+
+- After `apply_actions`, the workflow can emit a needs-review alert when new needs-review items were created.
+- Controlled by `alerts.enabled` and `alerts.include_total_count` in config.
+- Alert step runs after routing/labeling (`apply_actions`), reads:
+  - `needs_review_new_count` from state (set by `apply_actions`)
+  - `sheets.sheet_id` + `sheets.tabs.triage_tab`
+  - `gmail.labels.needs_review` for optional total count query
+- If `needs_review_new_count == 0`, event `needs_review_alert_suppressed` is logged.
+- If enabled and new count > 0:
+  - writes `artifacts/needs_review_alert.json`
+  - registers `needs_review_alert_json`
+  - logs `needs_review_alert_emitted`
+- If `alerts.include_total_count: true`, total count uses capped `GmailAdapter.search_message_ids(query=f"label:<needs_review_label>")`.
+
+## Attachments
+
+Optional attachment support is controlled by `gmail_to_sheets_intake` config:
+
+```yaml
+attachments:
+  enabled: false
+  max_size_bytes: 5242880
+  allowed_mime_types:
+    - "application/pdf"
+    - "image/jpeg"
+    - "image/png"
+  allowed_extensions:
+    - ".pdf"
+    - ".jpg"
+    - ".png"
+  route_mode: "artifacts" # artifacts | drive
+  drive_folder_id: ""
+```
+
+When enabled, step `attachments` runs after parsing and triage upsert and for each matched message:
+1) list attachments via Gmail API
+2) download each attachment body
+3) validate against size + MIME/extension allowlist
+4) invalid -> quarantine to `runs/<run_id>/attachments/quarantine/`
+5) valid -> route to:
+   - `runs/<run_id>/attachments/routed/` if `route_mode: artifacts`
+   - Drive folder `drive_folder_id` if `route_mode: drive`
+
+Run outputs include:
+- `runs/<run_id>/attachments/raw/` (downloaded bytes)
+- `runs/<run_id>/attachments/quarantine/`
+- `runs/<run_id>/attachments/routed/` (for artifacts mode)
+- `runs/<run_id>/attachments/manifest.jsonl` (per-attachment status + sha256)
+- `runs/<run_id>/attachments/summary.jsonl` (attachment processing run-summary)
+
+Artifact index entries added by this step:
+- `attachments_manifest_jsonl` for manifest
+- `attachments_summary_jsonl` for summary
+
+Attachment summary logs:
+- `gmail_attachments_summary` event includes `total`, `routed`, `quarantined`, `errors`.
+
+## 2-minute live run
+
+From repo root:
+
+```bash
+cd workflows/gmail_to_sheets_intake
+cp -n config.example.yml config.local.yml
+```
+
+Edit `config.local.yml` with your real values:
+- `gmail.gmail_query`
+- `sheets.sheet_id`
+- `gmail.labels.success`
+- `gmail.labels.needs_review`
+- `gmail.labels.error`
+
+Run:
+
+```bash
+uv run gw run gmail_to_sheets_intake --config workflows/gmail_to_sheets_intake/config.local.yml
+```
+
+After the run, collect:
+
+```bash
+uv run gw export <run_id> --format json
+uv run gw export <run_id> --format csv
+```
+
+## Expected outputs
+
+- `runs/<run_id>/artifacts/triage_export.csv`
+  - Rows are upserted by `message_id` into the configured triage tab.
+  - Expected columns include at least: `message_id`, `gmail_link`, `status`, `last_run_id`, `updated_at`.
+  - Verify that new/updated rows have `status` and a non-empty `gmail_link`.
+- `runs/<run_id>/artifacts/triage_audit.jsonl` (new in this task)
+  - One row per message processed by `apply_actions` with required columns:
+    - `run_id`
+    - `message_id`
+    - `outcome` (`processed` | `needs_review` | `skipped` | `error`)
+    - `reason`
+    - `sheet_row_id`
+    - `gmail_actions` (e.g. `label:gw/processed`, `label:gw/needs-review`, `archive_inbox`)
+    - `timestamp`
+- `runs/<run_id>/artifacts/actions_plan.json` and `runs/<run_id>/artifacts/actions_applied.json`
+  - Confirms `processed` and `needs_review` counts.
+- `runs/<run_id>/audit.json` and `runs/<run_id>/audit.csv`
+  - Engine step-level audit export from `gw export`.
+  - Includes `step_name` and step-level status for every workflow step.
+- `runs/<run_id>/artifacts/needs_review_alert.json` (created when alert fires)
+- `runs/<run_id>/artifacts/triage_audit.jsonl` action fields and logs
+  - Labels/actions to verify:
+    - `needs_review` rows should include `label:<needs_review_label>` and optional `archive_inbox` when `archive_on_failure: true`.
+    - `processed` rows should include `label:<success_label>` and optional `archive_inbox` when `archive_on_success: true`.
+- `logs.jsonl` / console output
+  - `gmail_actions_applied` and `apply_actions_done` confirm actions by bucket.
+
+## Troubleshooting
+
+- Auth/env not ready
+  - Confirm Google credentials are available and valid for both Gmail and Sheets.
+- Sheets permission denied / wrong sheet
+  - Share the Sheet with the service account/user used by the workflow.
+  - Verify `sheets.sheet_id` is valid and writable.
+- Labels not found
+  - Ensure `gmail.labels.success`, `gmail.labels.needs_review`, and `gmail.labels.error` match existing labels.
+  - The workflow will auto-create labels if the account has permission.
+- Query returns no rows
+  - Use a broader `gmail.gmail_query` temporarily (`in:inbox`, `newer_than:1d`) and check `gmail_intake_summary`.
+- Archive behavior feels wrong
+  - Verify `archive_on_success` / `archive_on_failure` in `options` match desired behavior.
+
+## Portfolio screenshots
+
+Place 1–2 screenshots in:
+
+`docs/assets/gmail_to_sheets_intake/`
+
+Recommended files:
+1) `01-terminal-run-success.png`
+2) `02-sheet-rows-created.png`
+3) `03-gmail-label-or-archive.png`
+4) `04-audit-snippet.png`
+
+Before committing, run:
+
+```bash
+make fmt
+make lint
+make test
+```
+
+## Historical evidence (T5)
+Use `runs/_evidence/01.04.02.P03.T5-check-proof.txt` with:
+1) redacted config dump (`gmail_query`, `gmail.labels`, `options`)
+2) 5–10 `apply_actions` log lines (or equivalent step summary lines)
+3) output snippet from `artifacts/actions_plan.json` or `artifacts/actions_applied.json`
+
+## Historical evidence (T7)
+Use `runs/_evidence/01.04.02.P03.T7-check-proof.txt` with:
+1) alert output in logs (`needs_review_alert_emitted` or `needs_review_alert_suppressed`)
+2) `artifacts/needs_review_alert.json` or evidence that no artifact exists when suppressed
+3) triage sheet URL used in the alert payload
+
+## Historical evidence (T8)
+Use `runs/_evidence/01.04.02.P03.T8-proof-pack.txt` with:
+1) sanitized config dump (query, labels, options)
+2) copied demo commands above
+3) 5–10 `triage_audit_written` / `apply_actions` / step summary log lines
+4) output snippet from `artifacts/triage_audit.jsonl` showing `message_id` and `outcome`
+
+## Workflow config example
+workflow:
+  name: gmail_to_sheets_intake
+
+gmail:
+  gmail_query: 'newer_than:7d -in:chats -category:social'
+  labels:
+    success: 'gw/processed'
+    needs_review: 'gw/needs-review'
+    error: 'gw/error'
+
+sheets:
+  sheet_id: 'DUMMY_SHEET_ID'
+  tabs:
+    triage_tab: 'triage'
+  defaults:
+    status: 'NEW'
+
+options:
+  max_messages: 25
+  min_confidence: 0.6
+  archive_on_success: false
+  archive_on_failure: false
+
+alerts:
+  enabled: false
+  include_total_count: false
+
+attachments:
+  enabled: false
+  max_size_bytes: 5242880
+  allowed_mime_types:
+    - "application/pdf"
+    - "image/jpeg"
+    - "image/png"
+  allowed_extensions:
+    - ".pdf"
+    - ".jpg"
+    - ".png"
+  route_mode: "artifacts"
+  drive_folder_id: ""
+
+## Demo script
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_ROOT"
+
+WORKFLOW="gmail_to_sheets_intake"
+LOCAL_CONFIG="workflows/${WORKFLOW}/config.local.yml"
+EXAMPLE_CONFIG="workflows/${WORKFLOW}/config.example.yml"
+
+if [[ -f "$LOCAL_CONFIG" ]]; then
+	CONFIG="$LOCAL_CONFIG"
+else
+	CONFIG="$EXAMPLE_CONFIG"
+fi
+
+echo "Using config: ${CONFIG}"
+uv run gw run "$WORKFLOW" --config "$CONFIG"
+echo "After run: copy 5-10 apply_actions log lines plus artifacts/actions_plan.json and artifacts/actions_applied.json snippets into runs/_evidence/01.04.02.P03.T5-check-proof.txt (redact sensitive values)."
+
+## Runbook
+# Gmail to Sheets Intake Runbook
+
+Purpose: how to run [gmail_to_sheets_intake](../../workflows/gmail_to_sheets_intake/README.md), inspect outputs, and capture safe local evidence.
+
+## 1) Purpose + when to run
+
+Use this runbook when you need to:
+- run Gmail search/fetch/parsing into a Sheets triage tab
+- apply configured Gmail labels and optional archive actions
+- verify artifacts, logs, and audit output
+- capture redacted proof for historical evidence
+
+The workflow is implemented for live Google API execution when OAuth credentials, Sheets access, and Gmail permissions are configured. Fixture-backed tests cover parsing, attachments, alerts, and action behavior without calling live Google APIs.
+
+## 2) Prereqs
+
+- Auth/env setup: see [Google auth](../architecture/05-auth.md) and [environment loading](../architecture/06-env-loading.md).
+- Sheet permissions: the target Sheet must be shared with the credential identity used locally.
+- Label existence: confirm configured Gmail labels exist (or can be created) and names match config exactly.
+- Local config: copy [config.example.yml](../../workflows/gmail_to_sheets_intake/config.example.yml) to `workflows/gmail_to_sheets_intake/config.local.yml` and keep local values out of git.
+
+## 3) Steps
+
+```bash
+cd workflows/gmail_to_sheets_intake
+cp -n config.example.yml config.local.yml
+```
+
+Edit `config.local.yml`:
+- set `sheets.sheet_id`
+- set `gmail.gmail_query`
+- set label names under `gmail.labels`
+
+Run from repo root or workflow folder:
+
+```bash
+bash ./demo.sh
+```
+
+## 4) What success looks like
+
+- Demo command exits with status 0.
+- A new run directory is created at `runs/<run_id>/`.
+- Logs are present at `runs/<run_id>/logs.jsonl`.
+- Artifacts may include `triage_export.csv`, `triage_audit.jsonl`, `actions_plan.json`, `actions_applied.json`, attachment manifests, and alert JSON depending on config.
+- `audit.json` / `audit.csv` may also appear under `runs/<run_id>/` after `uv run gw export <run_id>`.
+
+## 5) Common failures + fixes
+
+- Auth errors (`unauthorized`, token issues): verify local auth/env setup and retry.
+- Permission denied on Sheet: share the spreadsheet with the active credential identity.
+- Missing/invalid `sheet_id`: update `sheets.sheet_id` in `config.local.yml`.
+- Label not found / label mismatch: create labels or fix names in `gmail.labels`.
+- Command failure from wrong directory: run `bash ./demo.sh` from `workflows/gmail_to_sheets_intake/`.
+
+## 6) Evidence (P03.T1)
+
+Historical scaffold proof remains at:
+- [P03.T1 proof](../../runs/_evidence/01.04.02.P03.T1-proof.txt)
+
+Include:
+- redacted config dump (`config.local.yml`, no secrets)
+- 5–10 log lines from `runs/<run_id>/logs.jsonl` (or CLI output)
+- output snippet showing `runs/<run_id>/` path (or artifacts index line)
+
+## Sample assets README
+# gmail_to_sheets_intake sample assets
+
+This folder contains sanitized sample assets for portfolio/demo documentation.
+
+## Files
+- `01-terminal-run-success.png`
+  - Screenshot of terminal output after `bash ./demo.sh`.
+- `02-sheet-rows-created.png`
+  - Screenshot of the triage tab after a run.
+  - Show rows keyed by `message_id`, plus visible `gmail_link` and `status`.
+- `03-gmail-label-or-archive.png`
+  - Screenshot showing Gmail label and/or archive action results for one or more messages.
+- `04-audit-snippet.png`
+  - Screenshot of `runs/<run_id>/artifacts/triage_audit.jsonl` sample rows.
+
+## Portfolio screenshots (required)
+These `.png` files are placeholders and are intentionally empty until captured.
+
+1) `01-terminal-run-success.png`
+2) `02-sheet-rows-created.png`
+3) `03-gmail-label-or-archive.png`
+4) `04-audit-snippet.png`
+
+## Reproduce with demo.sh
+From repo root:
+
+```bash
+cd workflows/gmail_to_sheets_intake
+bash ./demo.sh
+```
+
+After completion, note `run_id` from terminal output and collect evidence from:
+- `runs/<run_id>/artifacts/triage_export.csv`
+- `runs/<run_id>/artifacts/triage_audit.jsonl`
+- `runs/_evidence/01.04.02.P03.T8-proof-pack.txt`
+
+## Sanitization rules
+- Do not include real spreadsheet IDs, tokens, or credentials.
+- Redact sheet IDs as `<SHEET_ID_REDACTED>`.
+- Redact emails if present.
+
+## Auth docs
+# Google Auth: Service Accounts and OAuth (Dev)
+
+This doc is the single source of truth for authentication in the GW Engine.
+
+Goals (T4):
+- Service Account auth works for Drive/Sheets.
+- OAuth dev flow is documented and works for Gmail.
+- Errors for missing creds/scopes are obvious and actionable.
+- Secrets are never committed.
+
+---
+
+## Auth options
+
+### Option A: Service Account (Drive/Sheets automation)
+Use a Google Service Account for server-style automation.
+
+Key points:
+- Service Accounts are separate identities (not “you”).
+- To access a specific Drive file / Sheet owned by you, you must **share it** with the service account email.
+- Keep the service account JSON private; never commit it.
+
+Env:
+- `GOOGLE_SERVICE_ACCOUNT_JSON=/absolute/path/to/service_account.json`
+
+#### Important scope note (this matters)
+- For OAuth user apps, `drive.file` is a good least-privilege default.
+- For Service Accounts, `drive.file` is often too restrictive for shared files and can behave like “not found”.
+  In T4 we switched the SA to use full Drive scope so it can access shared items:
+  - SA Drive scope: `https://www.googleapis.com/auth/drive`
+
+---
+
+### Option B: OAuth user credentials (developer flow / Gmail access)
+Use OAuth for developer flows where the user must consent, especially Gmail.
+
+Required env vars:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REFRESH_TOKEN`
+
+Gmail uses OAuth even if Service Account is configured (Drive/Sheets can still use SA).
+
+---
+
+## Scopes (recommended)
+- Drive (OAuth user default): `https://www.googleapis.com/auth/drive.file`
+- Drive (Service Account for shared file access): `https://www.googleapis.com/auth/drive`
+- Sheets: `https://www.googleapis.com/auth/spreadsheets`
+- Gmail: `https://www.googleapis.com/auth/gmail.modify`
+  - Gmail workflows that add/remove labels or archive messages require this scope.
+  - If a user only authorized `gmail.readonly` previously, they must re-run auth with `gmail.modify`.
+
+---
+
+## Client factory uses scopes automatically
+
+Scopes are centralized in `gw_engine.clients.scopes_for_api(...)`. You don't need to worry about scope selection in workflows.
+
+Key design points:
+- **Drive/Sheets** can use either Service Account or OAuth (determined by config)
+- **Gmail** remains OAuth-only for now (until domain-wide delegation is added in a future iteration).
+  - Labeling/archiving actions require `gmail.modify`.
+- The factory automatically applies the correct scopes for each API + auth method
+
+**Distinction**: Auth is about **credentials** (who you are). The Client Factory is what **builds API clients consistently** with those credentials and the right configuration (scopes, timeouts, retries).
+
+---
+
+## Dev prerequisites (what to set up once)
+
+### Service Account + quota-safe test sheet
+Some service accounts can’t create new Drive files due to storage quota limits.
+To avoid flaky “create file” tests, we use an existing spreadsheet you own and share to the SA.
+
+1) Get the service account email:
+```bash
+python -c "import json;print(json.load(open('/absolute/path/to/service_account.json'))['client_email'])"
+
+## Relevant env/config mentions
+.env.example:23:GOOGLE_SERVICE_ACCOUNT_JSON=
+.env.example:26:GOOGLE_CLIENT_ID=
+.env.example:27:GOOGLE_CLIENT_SECRET=
+.env.example:28:GOOGLE_REFRESH_TOKEN=
+.env.example:40:GW_TEST_SHEET_ID=
+.env.example:41:GW_SA_TEST_SHEET_ID=
+README.md:48:- `GW_TEST_SHEET_ID`
+README.md:50:	- `GOOGLE_SERVICE_ACCOUNT_JSON`, or
+README.md:51:	- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+README.md:95:- Gmail intake (`gmail_to_sheets_intake`): Gmail search/fetch/parse, Sheets triage upsert, labels/actions, optional attachments, alerts, and audit artifacts.
+workflows/gmail_to_sheets_intake/config.example.yml:5:  gmail_query: 'newer_than:7d -in:chats -category:social'
+workflows/gmail_to_sheets_intake/config.example.yml:6:  labels:
+workflows/gmail_to_sheets_intake/config.example.yml:12:  sheet_id: 'DUMMY_SHEET_ID'
+docs/runbooks/gmail_to_sheets_intake.md:9:- apply configured Gmail labels and optional archive actions
+docs/runbooks/gmail_to_sheets_intake.md:19:- Label existence: confirm configured Gmail labels exist (or can be created) and names match config exactly.
+docs/runbooks/gmail_to_sheets_intake.md:30:- set `sheets.sheet_id`
+docs/runbooks/gmail_to_sheets_intake.md:31:- set `gmail.gmail_query`
+docs/runbooks/gmail_to_sheets_intake.md:32:- set label names under `gmail.labels`
+docs/runbooks/gmail_to_sheets_intake.md:52:- Missing/invalid `sheet_id`: update `sheets.sheet_id` in `config.local.yml`.
+docs/runbooks/gmail_to_sheets_intake.md:53:- Label not found / label mismatch: create labels or fix names in `gmail.labels`.
