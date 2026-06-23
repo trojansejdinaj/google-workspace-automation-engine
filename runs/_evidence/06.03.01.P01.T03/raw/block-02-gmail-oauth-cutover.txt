@@ -1,0 +1,37 @@
+# Block 02 Gmail OAuth cutover evidence
+
+2026-06-23T11:37:48+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+873cdd5
+ M src/gw_engine/auth.py
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-demo-run.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-gmail-oauth-cutover.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-gmail-oauth-cutover.txtcd
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-live-failure-inspection.txt
+
+## Auth scope source check
+src/gw_engine/auth.py:32:GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
+src/gw_engine/auth.py:137:    scopes = [GMAIL_MODIFY_SCOPE]
+src/gw_engine/clients.py:39:GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+src/gw_engine/clients.py:40:GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
+src/gw_engine/clients.py:121:        return [GMAIL_MODIFY_SCOPE]
+
+## Redacted config
+GW_PROFILE=local
+GW_DEBUG=True
+GW_LOG_LEVEL=DEBUG
+GW_RUNS_DIR=runs
+GOOGLE_SERVICE_ACCOUNT_JSON=
+GOOGLE_CLIENT_ID=874...com
+GOOGLE_CLIENT_SECRET=GOC...eBb
+GOOGLE_REFRESH_TOKEN=<TOKEN_REDACTED>
+
+## Gmail auth test
+OAuth OK: Gmail profile for <EMAIL_REDACTED>
+
+## Targeted checks
+All checks passed!
+1 file already formatted
+........                                                                 [100%]

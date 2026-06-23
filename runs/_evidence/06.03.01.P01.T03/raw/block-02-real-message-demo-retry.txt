@@ -1,0 +1,34 @@
+# Block 02 Run Gmail Intake Demo - real message run retry
+
+2026-06-23T12:30:37+02:00
+
+## Git
+task/06.03.01.P01.T03-gmail-workflow-demo-setup
+873cdd5
+ M src/gw_engine/auth.py
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-demo-run.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-gmail-oauth-cutover.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-live-failure-inspection.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-demo-retry.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-demo-run.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-demo-retry.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-message-demo-run.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-run-id.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-success-artifact-inspection.txt
+?? runs/_evidence/06.03.01.P01.T03/raw/block-02-real-success-artifact-inspection.txtcd
+
+## Config safety
+.gitignore:61:**/config.local.yml	workflows/gmail_to_sheets_intake/config.local.yml
+
+## Demo command
+bash workflows/gmail_to_sheets_intake/demo.sh
+
+## Demo output
+Using config: workflows/gmail_to_sheets_intake/config.local.yml
+{
+  "error": null,
+  "failed_step": null,
+  "ok": true,
+  "run_id": "2c522287aa004b389d8fb49daa2ba164"
+}
+After run: copy 5-10 apply_actions log lines plus artifacts/actions_plan.json and artifacts/actions_applied.json snippets into runs/_evidence/01.04.02.P03.T5-check-proof.txt (redact sensitive values).

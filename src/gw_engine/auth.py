@@ -29,7 +29,7 @@ class GmailService(Protocol):
 DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets"
-GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 
 
 class AuthError(RuntimeError):
@@ -134,7 +134,7 @@ def build_gmail(cfg: AppConfig) -> GmailService:
     Gmail in dev uses OAuth user credentials.
     Service accounts can access Gmail only via Workspace domain-wide delegation (future).
     """
-    scopes = [GMAIL_READONLY_SCOPE]
+    scopes = [GMAIL_MODIFY_SCOPE]
 
     # Always use OAuth for Gmail if OAuth creds exist.
     # Having a service_account_json configured for Drive/Sheets should NOT block Gmail.
