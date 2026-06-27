@@ -223,6 +223,7 @@ git diff --check
 ## Documentation index
 
 - [Portfolio case study](docs/case-studies/google-workspace-automation-engine.md)
+- [Upwork portfolio and proposal assets](docs/sales/upwork/README.md)
 - [System overview](docs/architecture/00-system-overview.md)
 - [Run model](docs/architecture/02-run-model.md)
 - [Workflow plugin architecture](docs/architecture/03-workflow-plugin-architecture.md)
